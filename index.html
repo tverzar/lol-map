@@ -422,6 +422,8 @@
       <label class="layer-line"><input type="checkbox" id="layerBoundaries" checked><span data-i18n="layerBoundaries">Границы владений</span></label>
       <label class="layer-line"><input type="checkbox" id="layerSettlements" checked><span data-i18n="layerSettlements">Маркеры поселений</span></label>
       <label class="layer-line"><input type="checkbox" id="layerResources" checked><span data-i18n="layerResources">Значки месторождений</span></label>
+      <label class="layer-line"><input type="checkbox" id="layerNature" checked><span data-i18n="layerNature">Деревья и горы</span></label>
+      <label class="layer-line"><input type="checkbox" id="layerBuildings" checked><span data-i18n="layerBuildings">Значки зданий</span></label>
       <label class="layer-line"><input type="checkbox" id="layerWalls" checked><span data-i18n="layerWalls">Стены и укрепления</span></label>
       <label class="layer-line"><input type="checkbox" id="layerFreeOnly"><span data-i18n="layerFreeOnly">Только свободные клетки</span></label>
       <label class="layer-line"><input type="checkbox" id="layerFailures" checked><span data-i18n="layerFailures">Ошибки проверки</span></label>
@@ -450,7 +452,7 @@ const I18N = {
     coordinatesLabel: "Координаты", terrainLabel: "Местность", zoomLabel: "Масштаб",
     layersTitle: "Слои карты",
     layerBoundaries: "Границы владений", layerSettlements: "Маркеры поселений",
-    layerResources: "Значки месторождений", layerWalls: "Стены и укрепления",
+    layerResources: "Значки месторождений", layerBuildings: "Значки зданий", layerNature: "Деревья и горы", layerWalls: "Стены и укрепления",
     layerFailures: "Ошибки проверки", layersOwners: "Владения",
     layerFreeOnly: "Только свободные клетки",
     snapshotFrom: "Снимок от", updatedPrefix: "обновлено", justNow: "только что",
@@ -475,7 +477,7 @@ const I18N = {
     coordinatesLabel: "Coordinates", terrainLabel: "Terrain", zoomLabel: "Zoom",
     layersTitle: "Map layers",
     layerBoundaries: "Domain borders", layerSettlements: "Settlement markers",
-    layerResources: "Deposit markers", layerWalls: "Walls & fortifications",
+    layerResources: "Deposit markers", layerBuildings: "Building icons", layerNature: "Trees & mountains", layerWalls: "Walls & fortifications",
     layerFailures: "Scan failures", layersOwners: "Domains",
     layerFreeOnly: "Free cells only",
     snapshotFrom: "Snapshot from", updatedPrefix: "updated", justNow: "just now",
@@ -884,6 +886,8 @@ let showBoundaries = true;
 let showSettlements = true;
 let showResourceMarkers = true;
 let showWalls = true;
+let showBuildings = true;
+let showNature = true;
 let showFreeOnly = false; // слой: только свободные клетки (выбранного типа или все месторождения)
 let selectedOwnerKey = null; // an ownerIdx, or null — spotlight one settlement's land
 
@@ -968,6 +972,8 @@ for (const [id, setter] of [
   ["layerSettlements", v => showSettlements = v],
   ["layerResources", v => showResourceMarkers = v],
   ["layerWalls", v => showWalls = v],
+  ["layerBuildings", v => showBuildings = v],
+  ["layerNature", v => showNature = v],
   ["layerFailures", v => showFailed = v],
   ["layerFreeOnly", v => { showFreeOnly = v; cachedResourceMarkers = null; cachedFreeDeposits = null; }],
 ]) {
@@ -1450,6 +1456,171 @@ function drawResourceMarkers(viewW, viewH, size, dim) {
   ctx.restore();
 }
 
+// Значки зданий на свободных клетках (buildings.json рядом с index.html:
+// {ключ_континента: [[x, y, тип], ...]}). Рисуются при крупном масштабе.
+let BUILDINGS = {};
+fetch("buildings.json").then(r => r.ok ? r.json() : {}).then(j => { BUILDINGS = j; render(); }).catch(() => {});
+const BLD_CAT = {
+  hstreet:"road", vstreet:"road", crossing:"house", xcross:"house", square:"market", market:"market",
+  farm:"house", hunting:"house", school:"school", temple:"temple", well:"well",
+  wheat:"field", meadow:"field", field:"field", linen:"field", vgarden:"field", plant:"field",
+  barn:"barn", stable:"barn", cowshed:"barn", pigsty:"barn", sheepfld:"barn", whouse:"barn",
+  limeston:"quarry", sandston:"quarry", basalt:"quarry", granite:"quarry", clay:"quarry", slate:"quarry", smarsh:"quarry",
+  iron:"mine", tin:"mine",
+  carpent:"workshop", toolfac:"workshop", nailfac:"workshop", wheelwr:"workshop", byard:"workshop", pottery:"workshop", limekiln:"workshop", bfurnace:"workshop",
+};
+const BLD_DIRS = {n:[0,-1], s:[0,1], e:[1,0], w:[-1,0], ne:[1,-1], nw:[-1,-1], se:[1,1], sw:[-1,1]};
+function bldCat(t) { return BLD_CAT[t] || (/strt$/.test(t) ? "street" : null); }
+function drawBuildingIcon(c, cat, t, x, y, s) {
+  const m = s / 2, u = s / 44;
+  c.save(); c.translate(x, y); c.lineJoin = "round"; c.lineCap = "round"; c.lineWidth = Math.max(1, u * 1.6);
+  const roadH = () => { c.fillStyle = "rgba(205,180,130,.95)"; c.fillRect(0, m - 5*u, s, 10*u); };
+  const roadV = () => { c.fillStyle = "rgba(205,180,130,.95)"; c.fillRect(m - 5*u, 0, 10*u, s); };
+  const house = col => {
+    c.fillStyle = col; c.strokeStyle = "#28140a";
+    c.beginPath(); c.moveTo(9*u,22*u); c.lineTo(22*u,8*u); c.lineTo(35*u,22*u); c.closePath(); c.fill(); c.stroke();
+    c.fillStyle = "#ebdcbe"; c.fillRect(12*u,22*u,20*u,14*u); c.strokeRect(12*u,22*u,20*u,14*u);
+  };
+  if (cat === "road") { if (t === "vstreet") roadV(); else roadH(); }
+  else if (cat === "street") {
+    const a = t.slice(0, -4);
+    const dirs = a.length === 2 ? [a[0], a[1]] : a.length === 3 ? [a[0], a.slice(1)] : a.length === 4 ? [a.slice(0,2), a.slice(2)] : [];
+    c.strokeStyle = "rgba(205,180,130,.95)"; c.lineWidth = 10 * u;
+    for (const d of dirs) {
+      const v = BLD_DIRS[d]; if (!v) continue;
+      c.beginPath(); c.moveTo(m, m); c.lineTo(m + v[0]*m, m + v[1]*m); c.stroke();
+    }
+  }
+  else if (cat === "house") { if (t === "crossing" || t === "xcross") { roadV(); roadH(); } house(t === "farm" ? "#6e9646" : "#96463a"); }
+  else if (cat === "field") {
+    c.fillStyle = t === "meadow" ? "#8fbf5a" : t === "linen" ? "#9fb7d9" : t === "vgarden" ? "#7aa34a" : "#e4c85a";
+    c.strokeStyle = "#5a4614"; c.fillRect(4*u,4*u,s-8*u,s-8*u); c.strokeRect(4*u,4*u,s-8*u,s-8*u);
+    c.strokeStyle = "rgba(90,70,20,.7)";
+    for (let i = 10; i < 40; i += 7) { c.beginPath(); c.moveTo(i*u,7*u); c.lineTo(i*u,37*u); c.stroke(); }
+  }
+  else if (cat === "barn") {
+    c.fillStyle = "#aa3c32"; c.strokeStyle = "#280a0a";
+    c.beginPath(); c.moveTo(6*u,18*u); c.lineTo(22*u,6*u); c.lineTo(38*u,18*u); c.lineTo(38*u,36*u); c.lineTo(6*u,36*u); c.closePath(); c.fill(); c.stroke();
+    c.strokeStyle = "#f0e6c8"; c.beginPath(); c.moveTo(16*u,36*u); c.lineTo(28*u,22*u); c.moveTo(28*u,36*u); c.lineTo(16*u,22*u); c.stroke();
+  }
+  else if (cat === "school" || cat === "temple") {
+    const col = cat === "school" ? "#3c4696" : "#8c5ab4";
+    c.fillStyle = "#f0ebd7"; c.strokeStyle = col; c.fillRect(8*u,14*u,28*u,22*u); c.strokeRect(8*u,14*u,28*u,22*u);
+    c.fillStyle = col; c.beginPath(); c.moveTo(6*u,14*u); c.lineTo(22*u,5*u); c.lineTo(38*u,14*u); c.closePath(); c.fill();
+    c.fillRect(19*u,24*u,6*u,12*u);
+    if (cat === "temple") { c.fillRect(21*u,0,2*u,6*u); c.fillRect(18*u,2*u,8*u,2*u); }
+  }
+  else if (cat === "quarry" || cat === "mine") {
+    c.fillStyle = cat === "mine" ? "#5a5a64" : "#b4aa96"; c.strokeStyle = "#222";
+    c.beginPath(); c.moveTo(5*u,36*u); c.lineTo(15*u,14*u); c.lineTo(24*u,26*u); c.lineTo(31*u,10*u); c.lineTo(40*u,36*u); c.closePath(); c.fill(); c.stroke();
+    c.strokeStyle = "#8a5a2a"; c.lineWidth = 3*u; c.beginPath(); c.moveTo(12*u,40*u); c.lineTo(34*u,18*u); c.stroke();
+    c.strokeStyle = "#ccc"; c.beginPath(); c.arc(30*u,22*u,8*u,Math.PI*1.1,Math.PI*1.9); c.stroke();
+  }
+  else if (cat === "workshop") {
+    c.fillStyle = "#785a3c"; c.strokeStyle = "#1e140a"; c.fillRect(8*u,18*u,28*u,18*u); c.strokeRect(8*u,18*u,28*u,18*u);
+    c.fillStyle = "#c8c8d2"; c.beginPath(); c.arc(22*u,12*u,8*u,0,Math.PI*2); c.fill(); c.stroke();
+    c.fillStyle = "#785a3c"; c.beginPath(); c.arc(22*u,12*u,3*u,0,Math.PI*2); c.fill();
+  }
+  else if (cat === "well") {
+    c.fillStyle = "#8c8c96"; c.strokeStyle = "#222"; c.beginPath(); c.arc(22*u,26*u,10*u,0,Math.PI*2); c.fill(); c.stroke();
+    c.fillStyle = "#4a7cc0"; c.beginPath(); c.arc(22*u,26*u,6*u,0,Math.PI*2); c.fill();
+    c.strokeStyle = "#6a4a2a"; c.beginPath(); c.moveTo(12*u,26*u); c.lineTo(12*u,10*u); c.lineTo(32*u,10*u); c.lineTo(32*u,26*u); c.stroke();
+  }
+  else if (cat === "market") {
+    c.fillStyle = "#e0b43c"; c.strokeStyle = "#3a2a08"; c.fillRect(6*u,10*u,32*u,12*u); c.strokeRect(6*u,10*u,32*u,12*u);
+    c.fillStyle = "#d8c8a0"; c.fillRect(8*u,22*u,28*u,14*u); c.strokeRect(8*u,22*u,28*u,14*u);
+  }
+  c.restore();
+}
+function drawBuildings(viewW, viewH, size, dim) {
+  const list = BUILDINGS[ALL_DATA.continents[currentContinentIdx].key];
+  if (!showBuildings || !list || size < 8 || selectedOwnerKey !== null) return;
+  ctx.save(); ctx.globalAlpha = dim ? .35 : 1;
+  for (const [wx, wy, t] of list) {
+    const cat = bldCat(t); if (!cat) continue;
+    const [sx, sy] = worldToScreen(wx, wy);
+    if (sx < -size || sy < -size || sx > viewW + size || sy > viewH + size) continue;
+    drawBuildingIcon(ctx, cat, t, sx, sy, size);
+  }
+  ctx.restore();
+}
+
+// Значки гор (по типу местности из data.json.gz) и деревьев (trees.json:
+// {ключ_континента: {порода: [x0, y0, x1, y1, ...]}}). Только при крупном масштабе.
+let TREES = {};
+fetch("trees.json").then(r => r.ok ? r.json() : {}).then(j => { TREES = j; render(); }).catch(() => {});
+const MOUNTAIN_STYLE = {
+  limeston:["#cbc4af","#8d866f"], basalt:["#575762","#2a2a32"], sandston:["#d3a465","#8f6a38"],
+  granite:["#a58f8f","#6a5858"], marble:["#eeeae4","#a6a29c"], volcano:["#8c3b2a","#3a1510"], plateau:["#b39d77","#7b6a4a"],
+};
+const CONIFER = new Set(["spruce","fir","pine","larch","cedar","cypress","juniper"]);
+const FRUIT = {apple:"#d9453a", plum:"#6a3a8a", pear:"#c8d24a", cherry:"#c8203a", apricot:"#f0a83a", orange:"#f08a1a", lemon:"#f0e04a", almond:"#e8d8c0", olive:"#5a6a2a", nutmeg:"#8a5a2a"};
+const CROWN = {beech:"#5d9a4e", oak:"#4f8a40", ash:"#6aa65a", maple:"#7aa83c", lime:"#6bb060", birch:"#8cbc5a", alder:"#4f8f5a", poplar:"#78b060", willow:"#88b878",
+  chestnut:"#4f8f3f", hazel:"#6a9a4a", holmoak:"#3f7a4a", corkoak:"#5a8a3a", walnut:"#5a8a40", banyan:"#3f7f3a", acacia:"#9aa850"};
+function drawMountain(c, code, x, y, s) {
+  const st = MOUNTAIN_STYLE[code]; if (!st) return;
+  const u = s / 44; c.save(); c.translate(x, y); c.lineJoin = "round"; c.lineWidth = Math.max(1, u * 1.2); c.strokeStyle = st[1];
+  if (code === "plateau") {
+    c.fillStyle = st[0]; c.beginPath(); c.moveTo(5*u,34*u); c.lineTo(11*u,16*u); c.lineTo(33*u,16*u); c.lineTo(39*u,34*u); c.closePath(); c.fill(); c.stroke();
+    c.beginPath(); c.moveTo(11*u,16*u); c.lineTo(11*u,22*u); c.moveTo(33*u,16*u); c.lineTo(33*u,22*u); c.stroke();
+  } else {
+    c.fillStyle = st[0];
+    c.beginPath(); c.moveTo(3*u,35*u); c.lineTo(15*u,12*u); c.lineTo(27*u,35*u); c.closePath(); c.fill(); c.stroke();
+    c.fillStyle = st[0]; c.beginPath(); c.moveTo(18*u,35*u); c.lineTo(30*u,8*u); c.lineTo(42*u,35*u); c.closePath(); c.fill(); c.stroke();
+    c.fillStyle = st[1]; c.beginPath(); c.moveTo(30*u,8*u); c.lineTo(42*u,35*u); c.lineTo(32*u,35*u); c.closePath(); c.fill();
+    if (code === "volcano") { c.fillStyle = "#ff8a2a"; c.beginPath(); c.moveTo(26*u,14*u); c.lineTo(34*u,14*u); c.lineTo(30*u,8*u); c.closePath(); c.fill(); }
+    if (code === "marble" || code === "granite") { c.fillStyle = "#fff"; c.beginPath(); c.moveTo(30*u,8*u); c.lineTo(34*u,17*u); c.lineTo(30*u,15*u); c.lineTo(26*u,17*u); c.closePath(); c.fill(); }
+  }
+  c.restore();
+}
+function drawTree(c, sp, x, y, s) {
+  const u = s / 44; c.save(); c.translate(x, y); c.lineJoin = "round"; c.lineWidth = Math.max(1, u * 1.2); c.strokeStyle = "rgba(20,40,20,.85)";
+  if (CONIFER.has(sp)) {
+    c.fillStyle = sp === "larch" ? "#7fa04a" : sp === "cypress" || sp === "juniper" ? "#2f5f48" : "#2f6a4a";
+    c.beginPath(); c.moveTo(22*u,6*u); c.lineTo(32*u,22*u); c.lineTo(12*u,22*u); c.closePath(); c.fill(); c.stroke();
+    c.beginPath(); c.moveTo(22*u,14*u); c.lineTo(35*u,33*u); c.lineTo(9*u,33*u); c.closePath(); c.fill(); c.stroke();
+    c.fillStyle = "#5a3a22"; c.fillRect(20*u,33*u,4*u,6*u);
+  } else if (sp === "palm") {
+    c.strokeStyle = "#6a4a2a"; c.lineWidth = 3*u; c.beginPath(); c.moveTo(22*u,38*u); c.quadraticCurveTo(25*u,26*u,22*u,16*u); c.stroke();
+    c.strokeStyle = "#3f8f3a"; c.lineWidth = 3*u;
+    for (const a of [-2.6,-2.0,-1.1,-0.5]) { c.beginPath(); c.moveTo(22*u,16*u); c.lineTo(22*u+Math.cos(a)*14*u, 16*u-Math.sin(a)*-9*u+4*u); c.stroke(); }
+  } else if (sp === "bamboo") {
+    c.strokeStyle = "#7ab84a"; c.lineWidth = 3*u; for (const dx of [14,22,30]) { c.beginPath(); c.moveTo(dx*u,38*u); c.lineTo(dx*u,8*u+(dx%3)*3*u); c.stroke(); }
+  } else if (sp === "fern" || sp === "vine") {
+    c.strokeStyle = sp === "fern" ? "#4f9a4a" : "#7a4a8a"; c.lineWidth = 2.5*u;
+    for (const a of [-1.1,-0.5,0,0.5,1.1]) { c.beginPath(); c.moveTo(22*u,34*u); c.lineTo(22*u+Math.sin(a)*14*u, 34*u-Math.cos(a)*18*u); c.stroke(); }
+  } else {
+    c.fillStyle = "#6a4a2a"; c.fillRect(20*u,28*u,4*u,10*u);
+    c.fillStyle = FRUIT[sp] ? "#5a9a46" : (CROWN[sp] || "#5a9a4a");
+    c.beginPath(); c.arc(22*u,20*u,13*u,0,Math.PI*2); c.fill(); c.stroke();
+    if (FRUIT[sp]) { c.fillStyle = FRUIT[sp]; for (const [dx,dy] of [[-6,-3],[5,-6],[0,4],[8,3],[-7,7]]) { c.beginPath(); c.arc((22+dx)*u,(20+dy)*u,2.4*u,0,Math.PI*2); c.fill(); } }
+  }
+  c.restore();
+}
+function drawNatureIcons(viewW, viewH, size, dim) {
+  if (!showNature || size < 8 || selectedOwnerKey !== null) return;
+  ctx.save(); ctx.globalAlpha = dim ? .3 : .95;
+  const pad = size;
+  for (const code in MOUNTAIN_STYLE) {
+    const ti = MAP_DATA.types.findIndex(t => t.code === code); if (ti < 0) continue;
+    for (const p of pointsByType[ti]) {
+      const [sx, sy] = worldToScreen(p[0], p[1]);
+      if (sx < -pad || sy < -pad || sx > viewW + pad || sy > viewH + pad) continue;
+      drawMountain(ctx, code, sx, sy, size);
+    }
+  }
+  const tr = TREES[ALL_DATA.continents[currentContinentIdx].key];
+  if (tr) for (const sp in tr) {
+    const a = tr[sp];
+    for (let i = 0; i < a.length; i += 2) {
+      const [sx, sy] = worldToScreen(a[i], a[i + 1]);
+      if (sx < -pad || sy < -pad || sx > viewW + pad || sy > viewH + pad) continue;
+      drawTree(ctx, sp, sx, sy, size);
+    }
+  }
+  ctx.restore();
+}
+
 function render() {
   if (!baseCanvas || !canvas.width || !canvas.height) return;
   const dpr = window.devicePixelRatio || 1;
@@ -1522,6 +1693,8 @@ function render() {
   if (mapTools.mode === "resources" || mapTools.resourceFilterActive) mapTools.drawResourceResults(viewW, viewH, sz);
   else if (selected !== null || showFreeOnly) drawResourceMarkers(viewW, viewH, sz, dim);
   drawWalls(viewW, viewH, sz, dim);
+  drawNatureIcons(viewW, viewH, sz, dim);
+  drawBuildings(viewW, viewH, sz, dim);
 
   mapTools.drawSettlements(viewW, viewH, sz, dim);
   ctx.globalAlpha = 1;
