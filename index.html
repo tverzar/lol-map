@@ -193,10 +193,15 @@
     font-size:20px; cursor:pointer; box-shadow:0 6px 24px rgba(0,0,0,.3); }
   #mapView .layers-card { position:absolute; right:14px; bottom:102px; z-index:5; width:215px; padding:10px 12px;
     border:1px solid var(--panel-border); border-radius:9px; background:rgba(12,19,27,.95); color:var(--ink);
-    box-shadow:0 8px 30px rgba(0,0,0,.35); backdrop-filter:blur(8px); }
+    box-shadow:0 8px 30px rgba(0,0,0,.35); backdrop-filter:blur(8px); max-height:calc(100% - 130px); overflow-y:auto; }
   #mapView .layers-card[hidden] { display:none; }
   #mapView .layers-title { color:var(--accent); font-size:.78rem; margin-bottom:6px; }
   #mapView .layer-line { display:flex; align-items:center; gap:8px; padding:6px 0; color:var(--ink-dim); font-size:.74rem; cursor:pointer; }
+  #mapView .icon-legend { margin:6px 0 4px; font-size:.74rem; color:var(--ink-dim); }
+  #mapView .icon-legend summary { cursor:pointer; padding:4px 0; }
+  #mapView .legend-grid { display:grid; grid-template-columns:1fr 1fr; gap:2px 8px; }
+  #mapView .legend-item { display:flex; align-items:center; gap:6px; min-width:0; }
+  #mapView .legend-ico { width:28px; height:28px; flex:none; background:rgba(120,150,90,.25); border-radius:4px; }
   #mapView .layer-line input { accent-color:var(--accent); }
   #mapView .layer-owner-title { margin:8px 0 4px; padding-top:8px; border-top:1px solid var(--panel-border);
     color:var(--accent); font-size:.7rem; text-transform:uppercase; letter-spacing:.06em; }
@@ -427,6 +432,25 @@
       <label class="layer-line"><input type="checkbox" id="layerWalls" checked><span data-i18n="layerWalls">Стены и укрепления</span></label>
       <label class="layer-line"><input type="checkbox" id="layerFreeOnly"><span data-i18n="layerFreeOnly">Только свободные клетки</span></label>
       <label class="layer-line"><input type="checkbox" id="layerFailures" checked><span data-i18n="layerFailures">Ошибки проверки</span></label>
+      <details class="icon-legend"><summary data-i18n="legendTitle">Легенда значков</summary>
+      <div class="legend-grid">
+        <div class="legend-item"><canvas class="legend-ico" width="56" height="56" data-ico="b:house:house"></canvas><span data-i18n="legHouse">Дом</span></div>
+        <div class="legend-item"><canvas class="legend-ico" width="56" height="56" data-ico="b:field:wheat"></canvas><span data-i18n="legField">Поле, сад</span></div>
+        <div class="legend-item"><canvas class="legend-ico" width="56" height="56" data-ico="b:barn:barn"></canvas><span data-i18n="legBarn">Амбар, хлев</span></div>
+        <div class="legend-item"><canvas class="legend-ico" width="56" height="56" data-ico="b:school:school"></canvas><span data-i18n="legSchool">Школа</span></div>
+        <div class="legend-item"><canvas class="legend-ico" width="56" height="56" data-ico="b:temple:temple"></canvas><span data-i18n="legTemple">Храм</span></div>
+        <div class="legend-item"><canvas class="legend-ico" width="56" height="56" data-ico="b:market:market"></canvas><span data-i18n="legMarket">Рынок</span></div>
+        <div class="legend-item"><canvas class="legend-ico" width="56" height="56" data-ico="b:workshop:carpent"></canvas><span data-i18n="legWorkshop">Мастерская</span></div>
+        <div class="legend-item"><canvas class="legend-ico" width="56" height="56" data-ico="b:quarry:limeston"></canvas><span data-i18n="legQuarry">Карьер</span></div>
+        <div class="legend-item"><canvas class="legend-ico" width="56" height="56" data-ico="b:mine:iron"></canvas><span data-i18n="legMine">Рудник</span></div>
+        <div class="legend-item"><canvas class="legend-ico" width="56" height="56" data-ico="b:well:well"></canvas><span data-i18n="legWell">Колодец</span></div>
+        <div class="legend-item"><canvas class="legend-ico" width="56" height="56" data-ico="b:xroad:crossing"></canvas><span data-i18n="legRoad">Дорога</span></div>
+        <div class="legend-item"><canvas class="legend-ico" width="56" height="56" data-ico="t:spruce"></canvas><span data-i18n="legConifer">Хвойное</span></div>
+        <div class="legend-item"><canvas class="legend-ico" width="56" height="56" data-ico="t:oak"></canvas><span data-i18n="legBroad">Лиственное</span></div>
+        <div class="legend-item"><canvas class="legend-ico" width="56" height="56" data-ico="t:apple"></canvas><span data-i18n="legFruit">Плодовое</span></div>
+        <div class="legend-item"><canvas class="legend-ico" width="56" height="56" data-ico="m:granite"></canvas><span data-i18n="legMountain">Гора</span></div>
+        <div class="legend-item"><canvas class="legend-ico" width="56" height="56" data-ico="m:plateau"></canvas><span data-i18n="legPlateau">Плато</span></div>
+      </div></details>
       <div class="layer-owner-title" data-i18n="layersOwners">Владения</div>
       <div class="layer-owner-list" id="layerOwnerList"></div>
     </div>
@@ -452,7 +476,7 @@ const I18N = {
     coordinatesLabel: "Координаты", terrainLabel: "Местность", zoomLabel: "Масштаб",
     layersTitle: "Слои карты",
     layerBoundaries: "Границы владений", layerSettlements: "Маркеры поселений",
-    layerResources: "Значки месторождений", layerBuildings: "Значки зданий", layerNature: "Деревья и горы", layerWalls: "Стены и укрепления",
+    layerResources: "Значки месторождений", layerBuildings: "Значки зданий", layerNature: "Деревья и горы", legHouse: "Дом", legField: "Поле, сад", legBarn: "Амбар, хлев", legSchool: "Школа", legTemple: "Храм", legMarket: "Рынок", legWorkshop: "Мастерская", legQuarry: "Карьер", legMine: "Рудник", legWell: "Колодец", legRoad: "Дорога", legConifer: "Хвойное", legBroad: "Лиственное", legFruit: "Плодовое", legMountain: "Гора", legPlateau: "Плато", legendTitle: "Легенда значков", layerWalls: "Стены и укрепления",
     layerFailures: "Ошибки проверки", layersOwners: "Владения",
     layerFreeOnly: "Только свободные клетки",
     snapshotFrom: "Снимок от", updatedPrefix: "обновлено", justNow: "только что",
@@ -477,7 +501,7 @@ const I18N = {
     coordinatesLabel: "Coordinates", terrainLabel: "Terrain", zoomLabel: "Zoom",
     layersTitle: "Map layers",
     layerBoundaries: "Domain borders", layerSettlements: "Settlement markers",
-    layerResources: "Deposit markers", layerBuildings: "Building icons", layerNature: "Trees & mountains", layerWalls: "Walls & fortifications",
+    layerResources: "Deposit markers", layerBuildings: "Building icons", layerNature: "Trees & mountains", legHouse: "House", legField: "Field, orchard", legBarn: "Barn, stable", legSchool: "School", legTemple: "Temple", legMarket: "Market", legWorkshop: "Workshop", legQuarry: "Quarry", legMine: "Mine", legWell: "Well", legRoad: "Road", legConifer: "Conifer", legBroad: "Broadleaf", legFruit: "Fruit tree", legMountain: "Mountain", legPlateau: "Plateau", legendTitle: "Icon legend", layerWalls: "Walls & fortifications",
     layerFailures: "Scan failures", layersOwners: "Domains",
     layerFreeOnly: "Free cells only",
     snapshotFrom: "Snapshot from", updatedPrefix: "updated", justNow: "just now",
@@ -1622,6 +1646,14 @@ function drawNatureIcons(viewW, viewH, size, dim) {
   }
   ctx.restore();
 }
+
+// Легенда значков: рисуем теми же функциями, что и карту.
+document.querySelectorAll(".legend-ico").forEach(cv => {
+  const [kind, a, b] = cv.dataset.ico.split(":"); const c = cv.getContext("2d"); c.clearRect(0, 0, 56, 56);
+  if (kind === "b") drawBuildingIcon(c, a, b, 0, 0, 56);
+  else if (kind === "t") drawTree(c, a, 0, 0, 56);
+  else drawMountain(c, a, 0, 0, 56);
+});
 
 function render() {
   if (!baseCanvas || !canvas.width || !canvas.height) return;
