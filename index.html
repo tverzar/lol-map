@@ -1491,6 +1491,7 @@ const BLD_CAT = {
   barn:"barn", stable:"barn", cowshed:"barn", pigsty:"barn", sheepfld:"barn", whouse:"barn",
   limeston:"quarry", sandston:"quarry", basalt:"quarry", granite:"quarry", clay:"quarry", slate:"quarry", smarsh:"quarry",
   iron:"mine", tin:"mine",
+  slaught:"workshop", winery:"workshop", cooper:"workshop", workshop:"workshop", glasswrt:"workshop", cabinet:"workshop", charcoal:"workshop", tarkiln:"workshop", forge:"workshop", cutlery:"workshop", basketry:"workshop", oilmill:"workshop", pprmill:"workshop", grnmill:"workshop", spinfac:"workshop", glthouse:"workshop", dock:"workshop", fishboat:"workshop", swfork:"xroad", efork:"xroad", nfork:"xroad", sfork:"xroad", wfork:"xroad", sefork:"xroad", nefork:"xroad", nwfork:"xroad", wcastle:"castle", gold:"mine", copper:"mine", silver:"mine", lead:"mine", diamond:"mine", coal:"mine", saphir:"mine", sand:"quarry", peat:"quarry", marble:"quarry", potato:"field", tea:"field", hut:"house", traphut:"house",
   house:"house", fallow:"field", orchard:"field", barley:"field", beet:"field", rice:"field", hemp:"field", oat:"field", hive:"barn", ostreet:"xroad", orstreet:"xroad",
   carpent:"workshop", toolfac:"workshop", nailfac:"workshop", wheelwr:"workshop", byard:"workshop", pottery:"workshop", limekiln:"workshop", bfurnace:"workshop",
 };
@@ -1515,6 +1516,12 @@ function drawBuildingIcon(c, cat, t, x, y, s) {
       const v = BLD_DIRS[d]; if (!v) continue;
       c.beginPath(); c.moveTo(m, m); c.lineTo(m + v[0]*m, m + v[1]*m); c.stroke();
     }
+  }
+  else if (cat === "castle") {
+    c.fillStyle = "#8c8c96"; c.strokeStyle = "#1e1e24";
+    c.fillRect(7*u,16*u,30*u,20*u); c.strokeRect(7*u,16*u,30*u,20*u);
+    for (const x of [7,15,23,31]) { c.fillRect(x*u,10*u,6*u,6*u); c.strokeRect(x*u,10*u,6*u,6*u); }
+    c.fillStyle = "#3a2a1a"; c.fillRect(19*u,26*u,6*u,10*u);
   }
   else if (cat === "xroad") { roadV(); roadH(); }
   else if (cat === "house") { if (t === "crossing" || t === "xcross") { roadV(); roadH(); } house(t === "farm" ? "#6e9646" : "#96463a"); }
