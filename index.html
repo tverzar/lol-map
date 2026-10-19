@@ -1467,6 +1467,7 @@ const BLD_CAT = {
   barn:"barn", stable:"barn", cowshed:"barn", pigsty:"barn", sheepfld:"barn", whouse:"barn",
   limeston:"quarry", sandston:"quarry", basalt:"quarry", granite:"quarry", clay:"quarry", slate:"quarry", smarsh:"quarry",
   iron:"mine", tin:"mine",
+  house:"house", fallow:"field", orchard:"field", barley:"field", beet:"field", rice:"field", hemp:"field", oat:"field", hive:"barn", ostreet:"xroad", orstreet:"xroad",
   carpent:"workshop", toolfac:"workshop", nailfac:"workshop", wheelwr:"workshop", byard:"workshop", pottery:"workshop", limekiln:"workshop", bfurnace:"workshop",
 };
 const BLD_DIRS = {n:[0,-1], s:[0,1], e:[1,0], w:[-1,0], ne:[1,-1], nw:[-1,-1], se:[1,1], sw:[-1,1]};
@@ -1491,6 +1492,7 @@ function drawBuildingIcon(c, cat, t, x, y, s) {
       c.beginPath(); c.moveTo(m, m); c.lineTo(m + v[0]*m, m + v[1]*m); c.stroke();
     }
   }
+  else if (cat === "xroad") { roadV(); roadH(); }
   else if (cat === "house") { if (t === "crossing" || t === "xcross") { roadV(); roadH(); } house(t === "farm" ? "#6e9646" : "#96463a"); }
   else if (cat === "field") {
     c.fillStyle = t === "meadow" ? "#8fbf5a" : t === "linen" ? "#9fb7d9" : t === "vgarden" ? "#7aa34a" : "#e4c85a";
