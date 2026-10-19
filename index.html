@@ -1507,7 +1507,20 @@ const BLD_CAT = {
 };
 const BLD_DIRS = {n:[0,-1], s:[0,1], e:[1,0], w:[-1,0], ne:[1,-1], nw:[-1,-1], se:[1,1], sw:[-1,1]};
 function bldCat(t) { return BLD_CAT[t] || (/strt$/.test(t) ? "street" : null); }
+// Нарисованные значки (assets/map-icons/*.png); если файл ещё не загрузился или
+// его нет — рисуем прежними векторными функциями ниже.
+const ICON_IMG = {};
+["house","field","barn","school","temple","market","workshop","quarry","mine","well","xroad","castle","conifer","broadleaf","fruit","mountain","plateau"].forEach(n => {
+  const im = new Image(); im.onload = () => { render(); if (window.drawLegendIcons) drawLegendIcons(); }; im.src = "assets/map-icons/" + n + ".png"; ICON_IMG[n] = im;
+});
+function drawIconImg(c, name, x, y, s, fit) {
+  const im = ICON_IMG[name]; if (!im || !im.complete || !im.naturalWidth) return false;
+  const k = Math.min(s / im.naturalWidth, s / im.naturalHeight) * (fit || 1), w = im.naturalWidth * k, h = im.naturalHeight * k;
+  c.drawImage(im, x + (s - w) / 2, y + (s - h) / 2, w, h); return true;
+}
+const BLD_IMG = { house:"house", field:"field", barn:"barn", school:"school", temple:"temple", market:"market", workshop:"workshop", quarry:"quarry", mine:"mine", well:"well", xroad:"xroad", castle:"castle" };
 function drawBuildingIcon(c, cat, t, x, y, s) {
+  if (BLD_IMG[cat] && drawIconImg(c, BLD_IMG[cat], x, y, s, cat === "xroad" ? 1.02 : .96)) return;
   const m = s / 2, u = s / 44;
   c.save(); c.translate(x, y); c.lineJoin = "round"; c.lineCap = "round"; c.lineWidth = Math.max(1, u * 1.6);
   const roadH = () => { c.fillStyle = "rgba(205,180,130,.95)"; c.fillRect(0, m - 5*u, s, 10*u); };
@@ -1601,6 +1614,8 @@ const FRUIT = {apple:"#d9453a", plum:"#6a3a8a", pear:"#c8d24a", cherry:"#c8203a"
 const CROWN = {beech:"#5d9a4e", oak:"#4f8a40", ash:"#6aa65a", maple:"#7aa83c", lime:"#6bb060", birch:"#8cbc5a", alder:"#4f8f5a", poplar:"#78b060", willow:"#88b878",
   chestnut:"#4f8f3f", hazel:"#6a9a4a", holmoak:"#3f7a4a", corkoak:"#5a8a3a", walnut:"#5a8a40", banyan:"#3f7f3a", acacia:"#9aa850"};
 function drawMountain(c, code, x, y, s) {
+  if ((code === "granite" || code === "marble") && drawIconImg(c, "mountain", x, y, s, 1)) return;
+  if (code === "plateau" && drawIconImg(c, "plateau", x, y, s, 1)) return;
   const st = MOUNTAIN_STYLE[code]; if (!st) return;
   const u = s / 44; c.save(); c.translate(x, y); c.lineJoin = "round"; c.lineWidth = Math.max(1, u * 1.2); c.strokeStyle = st[1];
   if (code === "plateau") {
@@ -1617,6 +1632,9 @@ function drawMountain(c, code, x, y, s) {
   c.restore();
 }
 function drawTree(c, sp, x, y, s) {
+  if (CONIFER.has(sp) && drawIconImg(c, "conifer", x, y, s, 1)) return;
+  if (FRUIT[sp] && drawIconImg(c, "fruit", x, y, s, 1)) return;
+  if (CROWN[sp] && drawIconImg(c, "broadleaf", x, y, s, 1)) return;
   const u = s / 44; c.save(); c.translate(x, y); c.lineJoin = "round"; c.lineWidth = Math.max(1, u * 1.2); c.strokeStyle = "rgba(20,40,20,.85)";
   if (CONIFER.has(sp)) {
     c.fillStyle = sp === "larch" ? "#7fa04a" : sp === "cypress" || sp === "juniper" ? "#2f5f48" : "#2f6a4a";
@@ -1665,12 +1683,13 @@ function drawNatureIcons(viewW, viewH, size, dim) {
 }
 
 // Легенда значков: рисуем теми же функциями, что и карту.
-document.querySelectorAll(".legend-ico").forEach(cv => {
+window.drawLegendIcons = () => document.querySelectorAll(".legend-ico").forEach(cv => {
   const [kind, a, b] = cv.dataset.ico.split(":"); const c = cv.getContext("2d"); c.clearRect(0, 0, 56, 56);
   if (kind === "b") drawBuildingIcon(c, a, b, 0, 0, 56);
   else if (kind === "t") drawTree(c, a, 0, 0, 56);
   else drawMountain(c, a, 0, 0, 56);
 });
+drawLegendIcons();
 
 try { if (localStorage.getItem("lolsite.legend") === "0") { document.getElementById("iconLegend").classList.add("collapsed"); document.getElementById("legendHead").setAttribute("aria-expanded", "false"); } } catch (e) {}
 document.getElementById("legendHead").addEventListener("click", () => {
