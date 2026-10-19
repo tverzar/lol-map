@@ -1513,6 +1513,15 @@ const ICON_IMG = {};
 ["house","field","barn","school","temple","market","workshop","quarry","mine","well","xroad","castle","conifer","broadleaf","fruit","mountain","plateau"].forEach(n => {
   const im = new Image(); im.onload = () => { render(); if (window.drawLegendIcons) drawLegendIcons(); }; im.src = "assets/map-icons/" + n + ".png"; ICON_IMG[n] = im;
 });
+// Атлас значков по типам построек и породам деревьев (assets/map-icons/types.webp, 16 колонок × 128 px).
+const USE_TYPE_ICONS = true;
+const TYPE_IDS = ["bakery", "barley", "barn", "basalt", "basketry", "beet", "bfurnace", "bkhouse", "butcher", "byard", "cabinet", "carpent", "cemetery", "charcoal", "clay", "coal", "coffee", "cooper", "copper", "cowshed", "crossing", "cutlery", "diamond", "dock", "efork", "emerald", "enwstrt", "esfont", "eswstrt", "fallow", "farm", "field", "fishboat", "forge", "glasswrt", "glthouse", "gold", "granite", "grnmill", "hbridge", "hemp", "hevea", "hive", "house", "hstreet", "hunting", "hut", "iron", "lead", "limekiln", "limeston", "linen", "marble", "market", "meadow", "nailfac", "nefork", "nfork", "nsestrt", "nswstrt", "nwfork", "oat", "obridge", "oilmill", "orbridge", "orchard", "orstreet", "ostreet", "peat", "pigsty", "plant", "potato", "pottery", "pprmill", "rice", "ropefac", "ruby", "sand", "sandston", "saphir", "school", "sefork", "sfork", "sheepfld", "silver", "slate", "slaught", "smarsh", "snestrt", "snwstrt", "spinfac", "square", "stable", "sthouse", "sulfur", "swfork", "tannery", "tarkiln", "tea", "temple", "tin", "toolfac", "traphut", "tree_acacia", "tree_alder", "tree_almond", "tree_apple", "tree_apricot", "tree_ash", "tree_bamboo", "tree_banyan", "tree_beech", "tree_birch", "tree_cedar", "tree_cherry", "tree_chestnut", "tree_corkoak", "tree_cypress", "tree_fern", "tree_fir", "tree_hazel", "tree_holmoak", "tree_juniper", "tree_larch", "tree_lemon", "tree_lime", "tree_maple", "tree_nutmeg", "tree_oak", "tree_olive", "tree_orange", "tree_palm", "tree_pear", "tree_pine", "tree_plum", "tree_poplar", "tree_spruce", "tree_teak", "tree_vine", "tree_walnut", "tree_weirwood", "tree_willow", "vbridge", "vgarden", "vstreet", "watmill", "wcastle", "well", "wfork", "wheat", "wheelwr", "whouse", "winery", "wnestrt", "workshop", "wsestrt", "xcross"];
+const TYPE_IDX = {}; TYPE_IDS.forEach((k, i) => TYPE_IDX[k] = i);
+const typeAtlas = new Image(); typeAtlas.onload = () => { render(); if (window.drawLegendIcons) drawLegendIcons(); }; typeAtlas.src = "assets/map-icons/types.webp";
+function drawTypeIcon(c, id, x, y, s) {
+  const i = TYPE_IDX[id]; if (i === undefined || !typeAtlas.complete || !typeAtlas.naturalWidth) return false;
+  c.drawImage(typeAtlas, (i % 16) * 128, ((i / 16) | 0) * 128, 128, 128, x, y, s, s); return true;
+}
 // false = везде прежние векторные значки (картинки лежат в assets/map-icons, но не используются).
 const USE_ICON_IMAGES = false;
 function drawIconImg(c, name, x, y, s, fit) {
@@ -1523,6 +1532,7 @@ function drawIconImg(c, name, x, y, s, fit) {
 }
 const BLD_IMG = { house:"house", field:"field", barn:"barn", school:"school", temple:"temple", market:"market", workshop:"workshop", quarry:"quarry", mine:"mine", well:"well", xroad:"xroad", castle:"castle" };
 function drawBuildingIcon(c, cat, t, x, y, s) {
+  if (USE_TYPE_ICONS && drawTypeIcon(c, t, x, y, s)) return;
   if (cat === "grove") { if (!drawIconImg(c, "broadleaf", x, y, s, 1)) drawTree(c, "oak", x, y, s); return; }
   else if (USE_ICON_IMAGES && (t === "crossing" || t === "xcross") && ICON_IMG.xroad.complete && ICON_IMG.house.complete) {
     drawIconImg(c, "xroad", x, y, s, 1.02); drawIconImg(c, "house", x, y, s, .72); return;
@@ -1642,6 +1652,7 @@ function drawMountain(c, code, x, y, s) {
   c.restore();
 }
 function drawTree(c, sp, x, y, s) {
+  if (USE_TYPE_ICONS && drawTypeIcon(c, "tree_" + sp, x, y, s)) return;
   if (CONIFER.has(sp) && drawIconImg(c, "conifer", x, y, s, 1)) return;
   if (FRUIT[sp] && drawIconImg(c, "fruit", x, y, s, 1)) return;
   if (CROWN[sp] && drawIconImg(c, "broadleaf", x, y, s, 1)) return;
