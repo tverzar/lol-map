@@ -440,6 +440,7 @@
         <div class="legend-item"><canvas class="legend-ico" width="56" height="56" data-ico="b:school:school"></canvas><span data-i18n="legSchool">Школа</span></div>
         <div class="legend-item"><canvas class="legend-ico" width="56" height="56" data-ico="b:temple:temple"></canvas><span data-i18n="legTemple">Храм</span></div>
         <div class="legend-item"><canvas class="legend-ico" width="56" height="56" data-ico="b:market:market"></canvas><span data-i18n="legMarket">Рынок</span></div>
+        <div class="legend-item"><canvas class="legend-ico" width="56" height="56" data-ico="b:castle:wcastle"></canvas><span data-i18n="legCastle">Замок</span></div>
         <div class="legend-item"><canvas class="legend-ico" width="56" height="56" data-ico="b:workshop:carpent"></canvas><span data-i18n="legWorkshop">Мастерская</span></div>
         <div class="legend-item"><canvas class="legend-ico" width="56" height="56" data-ico="b:quarry:limeston"></canvas><span data-i18n="legQuarry">Карьер</span></div>
         <div class="legend-item"><canvas class="legend-ico" width="56" height="56" data-ico="b:mine:iron"></canvas><span data-i18n="legMine">Рудник</span></div>
@@ -476,7 +477,7 @@ const I18N = {
     coordinatesLabel: "Координаты", terrainLabel: "Местность", zoomLabel: "Масштаб",
     layersTitle: "Слои карты",
     layerBoundaries: "Границы владений", layerSettlements: "Маркеры поселений",
-    layerResources: "Значки месторождений", layerBuildings: "Значки зданий", layerNature: "Деревья и горы", legHouse: "Дом", legField: "Поле, сад", legBarn: "Амбар, хлев", legSchool: "Школа", legTemple: "Храм", legMarket: "Рынок", legWorkshop: "Мастерская", legQuarry: "Карьер", legMine: "Рудник", legWell: "Колодец", legRoad: "Дорога", legConifer: "Хвойное", legBroad: "Лиственное", legFruit: "Плодовое", legMountain: "Гора", legPlateau: "Плато", legendTitle: "Легенда значков", layerWalls: "Стены и укрепления",
+    layerResources: "Значки месторождений", layerBuildings: "Значки зданий", layerNature: "Деревья и горы", legHouse: "Дом", legField: "Поле, сад", legBarn: "Амбар, хлев", legSchool: "Школа", legTemple: "Храм", legMarket: "Рынок", legWorkshop: "Мастерская", legQuarry: "Карьер", legMine: "Рудник", legWell: "Колодец", legRoad: "Дорога", legConifer: "Хвойное", legBroad: "Лиственное", legFruit: "Плодовое", legMountain: "Гора", legPlateau: "Плато", legendTitle: "Легенда значков", legCastle: "Замок", layerWalls: "Стены и укрепления",
     layerFailures: "Ошибки проверки", layersOwners: "Владения",
     layerFreeOnly: "Только свободные клетки",
     snapshotFrom: "Снимок от", updatedPrefix: "обновлено", justNow: "только что",
@@ -501,7 +502,7 @@ const I18N = {
     coordinatesLabel: "Coordinates", terrainLabel: "Terrain", zoomLabel: "Zoom",
     layersTitle: "Map layers",
     layerBoundaries: "Domain borders", layerSettlements: "Settlement markers",
-    layerResources: "Deposit markers", layerBuildings: "Building icons", layerNature: "Trees & mountains", legHouse: "House", legField: "Field, orchard", legBarn: "Barn, stable", legSchool: "School", legTemple: "Temple", legMarket: "Market", legWorkshop: "Workshop", legQuarry: "Quarry", legMine: "Mine", legWell: "Well", legRoad: "Road", legConifer: "Conifer", legBroad: "Broadleaf", legFruit: "Fruit tree", legMountain: "Mountain", legPlateau: "Plateau", legendTitle: "Icon legend", layerWalls: "Walls & fortifications",
+    layerResources: "Deposit markers", layerBuildings: "Building icons", layerNature: "Trees & mountains", legHouse: "House", legField: "Field, orchard", legBarn: "Barn, stable", legSchool: "School", legTemple: "Temple", legMarket: "Market", legWorkshop: "Workshop", legQuarry: "Quarry", legMine: "Mine", legWell: "Well", legRoad: "Road", legConifer: "Conifer", legBroad: "Broadleaf", legFruit: "Fruit tree", legMountain: "Mountain", legPlateau: "Plateau", legendTitle: "Icon legend", legCastle: "Castle", layerWalls: "Walls & fortifications",
     layerFailures: "Scan failures", layersOwners: "Domains",
     layerFreeOnly: "Free cells only",
     snapshotFrom: "Snapshot from", updatedPrefix: "updated", justNow: "just now",
@@ -1492,6 +1493,7 @@ const BLD_CAT = {
   limeston:"quarry", sandston:"quarry", basalt:"quarry", granite:"quarry", clay:"quarry", slate:"quarry", smarsh:"quarry",
   iron:"mine", tin:"mine",
   slaught:"workshop", winery:"workshop", cooper:"workshop", workshop:"workshop", glasswrt:"workshop", cabinet:"workshop", charcoal:"workshop", tarkiln:"workshop", forge:"workshop", cutlery:"workshop", basketry:"workshop", oilmill:"workshop", pprmill:"workshop", grnmill:"workshop", spinfac:"workshop", glthouse:"workshop", dock:"workshop", fishboat:"workshop", swfork:"xroad", efork:"xroad", nfork:"xroad", sfork:"xroad", wfork:"xroad", sefork:"xroad", nefork:"xroad", nwfork:"xroad", wcastle:"castle", gold:"mine", copper:"mine", silver:"mine", lead:"mine", diamond:"mine", coal:"mine", saphir:"mine", sand:"quarry", peat:"quarry", marble:"quarry", potato:"field", tea:"field", hut:"house", traphut:"house",
+  vbridge:"xroad", orbridge:"xroad", obridge:"xroad", ruby:"mine", sulfur:"mine",
   house:"house", fallow:"field", orchard:"field", barley:"field", beet:"field", rice:"field", hemp:"field", oat:"field", hive:"barn", ostreet:"xroad", orstreet:"xroad",
   carpent:"workshop", toolfac:"workshop", nailfac:"workshop", wheelwr:"workshop", byard:"workshop", pottery:"workshop", limekiln:"workshop", bfurnace:"workshop",
 };
