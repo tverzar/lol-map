@@ -1494,7 +1494,7 @@ fetch("buildings.json").then(r => r.ok ? r.json() : {}).then(j => { BUILDINGS = 
 const BLD_CAT = {
   hstreet:"road", vstreet:"road", crossing:"house", xcross:"house", square:"market", market:"market",
   farm:"house", hunting:"house", school:"school", temple:"temple", well:"well",
-  wheat:"field", meadow:"field", field:"field", linen:"field", vgarden:"field", plant:"field",
+  wheat:"field", meadow:"field", field:"field", linen:"field", vgarden:"field", plant:"grove",
   barn:"barn", stable:"barn", cowshed:"barn", pigsty:"barn", sheepfld:"barn", whouse:"barn",
   limeston:"quarry", sandston:"quarry", basalt:"quarry", granite:"quarry", clay:"quarry", slate:"quarry", smarsh:"quarry",
   iron:"mine", tin:"mine",
@@ -1513,14 +1513,24 @@ const ICON_IMG = {};
 ["house","field","barn","school","temple","market","workshop","quarry","mine","well","xroad","castle","conifer","broadleaf","fruit","mountain","plateau"].forEach(n => {
   const im = new Image(); im.onload = () => { render(); if (window.drawLegendIcons) drawLegendIcons(); }; im.src = "assets/map-icons/" + n + ".png"; ICON_IMG[n] = im;
 });
+// false = везде прежние векторные значки (картинки лежат в assets/map-icons, но не используются).
+const USE_ICON_IMAGES = false;
 function drawIconImg(c, name, x, y, s, fit) {
+  if (!USE_ICON_IMAGES) return false;
   const im = ICON_IMG[name]; if (!im || !im.complete || !im.naturalWidth) return false;
   const k = Math.min(s / im.naturalWidth, s / im.naturalHeight) * (fit || 1), w = im.naturalWidth * k, h = im.naturalHeight * k;
   c.drawImage(im, x + (s - w) / 2, y + (s - h) / 2, w, h); return true;
 }
 const BLD_IMG = { house:"house", field:"field", barn:"barn", school:"school", temple:"temple", market:"market", workshop:"workshop", quarry:"quarry", mine:"mine", well:"well", xroad:"xroad", castle:"castle" };
 function drawBuildingIcon(c, cat, t, x, y, s) {
-  if (BLD_IMG[cat] && drawIconImg(c, BLD_IMG[cat], x, y, s, cat === "xroad" ? 1.02 : .96)) return;
+  if (cat === "grove") { if (!drawIconImg(c, "broadleaf", x, y, s, 1)) drawTree(c, "oak", x, y, s); return; }
+  else if (USE_ICON_IMAGES && (t === "crossing" || t === "xcross") && ICON_IMG.xroad.complete && ICON_IMG.house.complete) {
+    drawIconImg(c, "xroad", x, y, s, 1.02); drawIconImg(c, "house", x, y, s, .72); return;
+  }
+  else if (BLD_IMG[cat]) {
+    if (t === "meadow") c.filter = "hue-rotate(55deg) saturate(.85)";
+    const ok = drawIconImg(c, BLD_IMG[cat], x, y, s, cat === "xroad" ? 1.02 : .96); c.filter = "none"; if (ok) return;
+  }
   const m = s / 2, u = s / 44;
   c.save(); c.translate(x, y); c.lineJoin = "round"; c.lineCap = "round"; c.lineWidth = Math.max(1, u * 1.6);
   const roadH = () => { c.fillStyle = "rgba(205,180,130,.95)"; c.fillRect(0, m - 5*u, s, 10*u); };
