@@ -453,6 +453,7 @@
       <label class="layer-line"><input type="checkbox" id="layerBoundaries" checked><span data-i18n="layerBoundaries">Границы владений</span></label>
       <label class="layer-line"><input type="checkbox" id="layerSettlements" checked><span data-i18n="layerSettlements">Маркеры поселений</span></label>
       <label class="layer-line"><input type="checkbox" id="layerResources" checked><span data-i18n="layerResources">Значки месторождений</span></label>
+      <label class="layer-line"><input type="checkbox" id="layerRoads" checked><span data-i18n="layerRoads">Дороги</span></label>
       <label class="layer-line"><input type="checkbox" id="layerGrid" checked><span data-i18n="layerGrid">Сетка клеток</span></label>
       <label class="layer-line"><input type="checkbox" id="layerNature" checked><span data-i18n="layerNature">Деревья и горы</span></label>
       <label class="layer-line"><input type="checkbox" id="layerBuildings" checked><span data-i18n="layerBuildings">Значки зданий</span></label>
@@ -484,7 +485,7 @@ const I18N = {
     coordinatesLabel: "Координаты", terrainLabel: "Местность", zoomLabel: "Масштаб",
     layersTitle: "Слои карты",
     layerBoundaries: "Границы владений", layerSettlements: "Маркеры поселений",
-    layerResources: "Значки месторождений", layerBuildings: "Значки зданий", layerNature: "Деревья и горы", layerGrid: "Сетка клеток", legHouse: "Дом", legField: "Поле, сад", legBarn: "Амбар, хлев", legSchool: "Школа", legTemple: "Храм", legMarket: "Рынок", legWorkshop: "Мастерская", legQuarry: "Карьер", legMine: "Рудник", legWell: "Колодец", legRoad: "Дорога", legConifer: "Хвойное", legBroad: "Лиственное", legFruit: "Плодовое", legMountain: "Гора", legPlateau: "Плато", legendTitle: "Легенда значков", legCastle: "Замок", layerWalls: "Стены и укрепления",
+    layerResources: "Значки месторождений", layerBuildings: "Значки зданий", layerNature: "Деревья и горы", layerGrid: "Сетка клеток", layerRoads: "Дороги", legHouse: "Дом", legField: "Поле, сад", legBarn: "Амбар, хлев", legSchool: "Школа", legTemple: "Храм", legMarket: "Рынок", legWorkshop: "Мастерская", legQuarry: "Карьер", legMine: "Рудник", legWell: "Колодец", legRoad: "Дорога", legConifer: "Хвойное", legBroad: "Лиственное", legFruit: "Плодовое", legMountain: "Гора", legPlateau: "Плато", legendTitle: "Легенда значков", legCastle: "Замок", layerWalls: "Стены и укрепления",
     layerFailures: "Ошибки проверки", layersOwners: "Владения",
     layerFreeOnly: "Только свободные клетки",
     snapshotFrom: "Снимок от", updatedPrefix: "обновлено", justNow: "только что",
@@ -509,7 +510,7 @@ const I18N = {
     coordinatesLabel: "Coordinates", terrainLabel: "Terrain", zoomLabel: "Zoom",
     layersTitle: "Map layers",
     layerBoundaries: "Domain borders", layerSettlements: "Settlement markers",
-    layerResources: "Deposit markers", layerBuildings: "Building icons", layerNature: "Trees & mountains", layerGrid: "Cell grid", legHouse: "House", legField: "Field, orchard", legBarn: "Barn, stable", legSchool: "School", legTemple: "Temple", legMarket: "Market", legWorkshop: "Workshop", legQuarry: "Quarry", legMine: "Mine", legWell: "Well", legRoad: "Road", legConifer: "Conifer", legBroad: "Broadleaf", legFruit: "Fruit tree", legMountain: "Mountain", legPlateau: "Plateau", legendTitle: "Icon legend", legCastle: "Castle", layerWalls: "Walls & fortifications",
+    layerResources: "Deposit markers", layerBuildings: "Building icons", layerNature: "Trees & mountains", layerGrid: "Cell grid", layerRoads: "Roads", legHouse: "House", legField: "Field, orchard", legBarn: "Barn, stable", legSchool: "School", legTemple: "Temple", legMarket: "Market", legWorkshop: "Workshop", legQuarry: "Quarry", legMine: "Mine", legWell: "Well", legRoad: "Road", legConifer: "Conifer", legBroad: "Broadleaf", legFruit: "Fruit tree", legMountain: "Mountain", legPlateau: "Plateau", legendTitle: "Icon legend", legCastle: "Castle", layerWalls: "Walls & fortifications",
     layerFailures: "Scan failures", layersOwners: "Domains",
     layerFreeOnly: "Free cells only",
     snapshotFrom: "Snapshot from", updatedPrefix: "updated", justNow: "just now",
@@ -921,6 +922,7 @@ let showWalls = true;
 let showBuildings = true;
 let showNature = true;
 let showGrid = true;
+let showRoads = true;
 let showFreeOnly = false; // слой: только свободные клетки (выбранного типа или все месторождения)
 let selectedOwnerKey = null; // an ownerIdx, or null — spotlight one settlement's land
 
@@ -1008,6 +1010,7 @@ for (const [id, setter] of [
   ["layerBuildings", v => showBuildings = v],
   ["layerNature", v => showNature = v],
   ["layerGrid", v => showGrid = v],
+  ["layerRoads", v => showRoads = v],
   ["layerFailures", v => showFailed = v],
   ["layerFreeOnly", v => { showFreeOnly = v; cachedResourceMarkers = null; cachedFreeDeposits = null; }],
 ]) {
@@ -1493,7 +1496,51 @@ function drawResourceMarkers(viewW, viewH, size, dim) {
 // Значки зданий на свободных клетках (buildings.json рядом с index.html:
 // {ключ_континента: [[x, y, тип], ...]}). Рисуются при крупном масштабе.
 let BUILDINGS = {};
-fetch("buildings.json").then(r => r.ok ? r.json() : {}).then(j => { BUILDINGS = j; render(); }).catch(() => {});
+fetch("buildings.json").then(r => r.ok ? r.json() : {}).then(j => { BUILDINGS = j; roadCache = {}; render(); }).catch(() => {});
+// Дороги: клетки с дорогой (типы улиц/перекрёстков/развилок/мостов из buildings.json
+// + roads.json — клетки, где в описании земли стоит значок дороги) соединяются
+// линиями между соседними клетками; на плитках остаются только дома.
+let ROADS = {}, roadCache = {};
+fetch("roads.json").then(r => r.ok ? r.json() : {}).then(j => { ROADS = j; roadCache = {}; render(); }).catch(() => {});
+const ROAD_TYPES = new Set(["hstreet","vstreet","crossing","xcross","ostreet","orstreet","hbridge","vbridge","obridge","orbridge"]);
+function roadKey(x, y) { return (x + 50000) * 200000 + (y + 50000); }
+function getRoadSet() {
+  const key = ALL_DATA.continents[currentContinentIdx].key;
+  if (roadCache[key]) return roadCache[key];
+  const set = new Set(), pts = [];
+  const add = (x, y) => { const k = roadKey(x, y); if (!set.has(k)) { set.add(k); pts.push(x, y); } };
+  for (const b of BUILDINGS[key] || []) { const t = b[2]; if (ROAD_TYPES.has(t) || t.endsWith("strt") || t.endsWith("fork")) add(b[0], b[1]); }
+  const r = ROADS[key] || [];
+  for (let i = 0; i < r.length; i += 2) add(r[i], r[i + 1]);
+  return roadCache[key] = { set, pts };
+}
+function drawRoads(viewW, viewH, sz, dim) {
+  if (!showRoads || sz < 4 || selectedOwnerKey !== null) return;
+  const { set, pts } = getRoadSet(); if (!pts.length) return;
+  const has = (x, y) => set.has(roadKey(x, y));
+  const segs = [], dots = [], pad = sz * 2;
+  for (let i = 0; i < pts.length; i += 2) {
+    const x = pts[i], y = pts[i + 1], [sx, sy] = worldToScreen(x, y);
+    if (sx < -pad || sy < -pad || sx > viewW + pad || sy > viewH + pad) continue;
+    const cx = sx + sz / 2, cy = sy + sz / 2;
+    const N = has(x, y - 1), S = has(x, y + 1), E = has(x + 1, y), W = has(x - 1, y);
+    const SE = !S && !E && has(x + 1, y + 1), SW = !S && !W && has(x - 1, y + 1);
+    const NE = !N && !E && has(x + 1, y - 1), NW = !N && !W && has(x - 1, y - 1);
+    if (E) segs.push(cx, cy, cx + sz, cy);
+    if (S) segs.push(cx, cy, cx, cy + sz);
+    if (SE) segs.push(cx, cy, cx + sz, cy + sz);
+    if (SW) segs.push(cx, cy, cx - sz, cy + sz);
+    if (!(N || S || E || W || SE || SW || NE || NW)) dots.push(cx, cy);
+  }
+  ctx.save(); ctx.globalAlpha = dim ? .3 : 1; ctx.lineCap = "round";
+  for (const [w, col] of [[sz * 0.30, "#2b1a0e"], [sz * 0.19, "#dcc088"]]) {
+    ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = w; ctx.beginPath();
+    for (let i = 0; i < segs.length; i += 4) { ctx.moveTo(segs[i], segs[i + 1]); ctx.lineTo(segs[i + 2], segs[i + 3]); }
+    ctx.stroke();
+    for (let i = 0; i < dots.length; i += 2) { ctx.beginPath(); ctx.arc(dots[i], dots[i + 1], w / 2, 0, Math.PI * 2); ctx.fill(); }
+  }
+  ctx.restore();
+}
 const BLD_CAT = {
   hstreet:"road", vstreet:"road", crossing:"house", xcross:"house", square:"market", market:"market",
   farm:"house", hunting:"house", school:"school", temple:"temple", well:"well",
@@ -1520,7 +1567,7 @@ const ICON_IMG = {};
 const USE_TYPE_ICONS = true;
 const TYPE_IDS = ["bakery", "barley", "barn", "basalt", "basketry", "beet", "bfurnace", "bkhouse", "butcher", "byard", "cabinet", "carpent", "cemetery", "charcoal", "clay", "coal", "coffee", "cooper", "copper", "cowshed", "crossing", "cutlery", "diamond", "dock", "efork", "emerald", "enwstrt", "esfont", "eswstrt", "fallow", "farm", "field", "fishboat", "forge", "glasswrt", "glthouse", "gold", "granite", "grnmill", "hbridge", "hemp", "hevea", "hive", "house", "hstreet", "hunting", "hut", "iron", "lead", "limekiln", "limeston", "linen", "marble", "market", "meadow", "nailfac", "nefork", "nfork", "nsestrt", "nswstrt", "nwfork", "oat", "obridge", "oilmill", "orbridge", "orchard", "orstreet", "ostreet", "peat", "pigsty", "plant", "potato", "pottery", "pprmill", "rice", "ropefac", "ruby", "sand", "sandston", "saphir", "school", "sefork", "sfork", "sheepfld", "silver", "slate", "slaught", "smarsh", "snestrt", "snwstrt", "spinfac", "square", "stable", "sthouse", "sulfur", "swfork", "tannery", "tarkiln", "tea", "temple", "tin", "toolfac", "traphut", "tree_acacia", "tree_alder", "tree_almond", "tree_apple", "tree_apricot", "tree_ash", "tree_bamboo", "tree_banyan", "tree_beech", "tree_birch", "tree_cedar", "tree_cherry", "tree_chestnut", "tree_corkoak", "tree_cypress", "tree_fern", "tree_fir", "tree_hazel", "tree_holmoak", "tree_juniper", "tree_larch", "tree_lemon", "tree_lime", "tree_maple", "tree_nutmeg", "tree_oak", "tree_olive", "tree_orange", "tree_palm", "tree_pear", "tree_pine", "tree_plum", "tree_poplar", "tree_spruce", "tree_teak", "tree_vine", "tree_walnut", "tree_weirwood", "tree_willow", "vbridge", "vgarden", "vstreet", "watmill", "wcastle", "well", "wfork", "wheat", "wheelwr", "whouse", "winery", "wnestrt", "workshop", "wsestrt", "xcross"];
 const TYPE_IDX = {}; TYPE_IDS.forEach((k, i) => TYPE_IDX[k] = i);
-const typeAtlas = new Image(); typeAtlas.onload = () => { render(); if (window.drawLegendIcons) drawLegendIcons(); }; typeAtlas.src = "assets/map-icons/types.webp?v=71f66315";
+const typeAtlas = new Image(); typeAtlas.onload = () => { render(); if (window.drawLegendIcons) drawLegendIcons(); }; typeAtlas.src = "assets/map-icons/types.webp?v=1a63665a";
 function drawTypeIcon(c, id, x, y, s) {
   const i = TYPE_IDX[id]; if (i === undefined || !typeAtlas.complete || !typeAtlas.naturalWidth) return false;
   c.drawImage(typeAtlas, (i % 16) * 128, ((i / 16) | 0) * 128, 128, 128, x, y, s, s); return true;
@@ -1807,6 +1854,7 @@ function render() {
   if (mapTools.mode === "resources" || mapTools.resourceFilterActive) mapTools.drawResourceResults(viewW, viewH, sz);
   else if (selected !== null || showFreeOnly) drawResourceMarkers(viewW, viewH, sz, dim);
   drawWalls(viewW, viewH, sz, dim);
+  drawRoads(viewW, viewH, sz, dim);
   drawNatureIcons(viewW, viewH, sz, dim);
   drawBuildings(viewW, viewH, sz, dim);
 
