@@ -134,13 +134,29 @@
   }
   #mapView .legend-divider:first-child { padding-top: 4px; }
   #mapView .legend-best {
-    font-size: 0.7rem; color: var(--accent); margin-top: 2px;
-    min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-size: 0.7rem; color: var(--accent); margin-top: 2px; cursor: pointer;
+    display: flex; align-items: center; gap: 3px; min-width: 0;
   }
+  #mapView .legend-best:hover { text-decoration: underline; }
+  #mapView .legend-best .chev, #mapView .legend-free .chev { display: inline-block; width: 8px; flex: none; }
+  #mapView .legend-best .best-label, #mapView .legend-free .best-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #mapView .legend-free {
-    font-size: 0.7rem; color: var(--ours); margin-top: 2px;
-    min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-size: 0.7rem; color: var(--ours); margin-top: 2px; cursor: pointer;
+    display: flex; align-items: center; gap: 3px; min-width: 0;
   }
+  #mapView .legend-free:hover { text-decoration: underline; }
+  #mapView .legend-top10 { margin: 2px 8px 6px 31px; border: 1px solid var(--panel-border); border-radius: 6px; overflow: hidden; }
+  #mapView .top10-row { display: flex; align-items: center; gap: 8px; padding: 5px 9px; font-size: 0.74rem; border-bottom: 1px solid var(--panel-border); cursor: pointer; }
+  #mapView .top10-row:last-child { border-bottom: none; }
+  #mapView .top10-row:hover { background: rgba(201, 138, 62, 0.08); }
+  #mapView .top10-rank { color: var(--ink-dim); width: 14px; flex: none; }
+  #mapView .top10-coords { flex: 1; font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace; color: var(--ink); }
+  #mapView .top10-quality { font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace; color: var(--ink-dim); }
+  #mapView .top10-stars { color: #f0bd63; letter-spacing: -1px; font-size: 0.7rem; flex: none; }
+  #mapView .m-badge { font-size: 0.68rem; padding: 1px 6px; border-radius: 4px; flex: none; white-space: nowrap; }
+  #mapView .m-badge-free { background: rgba(107, 143, 90, 0.22); color: #9fd68a; }
+  #mapView .m-badge-occupied { background: rgba(179, 69, 61, 0.22); color: #e08f8f; }
+  #mapView .m-badge-own { background: rgba(201, 138, 62, 0.22); color: var(--accent); }
   #mapView .sidebar-foot {
     display: flex; flex-direction: column; flex: none;
     padding: 12px 18px 16px; border-top: 1px solid var(--panel-border);
@@ -453,6 +469,7 @@
       <label class="layer-line"><input type="checkbox" id="layerBoundaries" checked><span data-i18n="layerBoundaries">Границы владений</span></label>
       <label class="layer-line"><input type="checkbox" id="layerSettlements" checked><span data-i18n="layerSettlements">Маркеры поселений</span></label>
       <label class="layer-line"><input type="checkbox" id="layerResources" checked><span data-i18n="layerResources">Значки месторождений</span></label>
+      <label class="layer-line"><input type="checkbox" id="layerStars" checked><span data-i18n="layerStars">Звёзды качества</span></label>
       <label class="layer-line"><input type="checkbox" id="layerRoads" checked><span data-i18n="layerRoads">Дороги</span></label>
       <label class="layer-line"><input type="checkbox" id="layerGrid" checked><span data-i18n="layerGrid">Сетка клеток</span></label>
       <label class="layer-line"><input type="checkbox" id="layerNature" checked><span data-i18n="layerNature">Деревья и горы</span></label>
@@ -496,7 +513,7 @@ const I18N = {
     statScanTime: "Континент пройден за",
     depositsGroup: "Ценные месторождения", terrainGroup: "Типы местности",
     failedToCheck: "Не удалось проверить",
-    best: (q) => `лучшее ${q}%`, freeLabel: (n) => `свободно: ${n}`,
+    best: (q) => `лучшее ${q}%`, topN: (n) => ` · топ-${n}`, layerStars: "Звёзды качества", freeLabel: (n) => `свободно: ${n}`,
     badgeFree: "свободно", badgeOccupied: "занято", badgeOwn: "наш домен",
     tQuality: (q) => `${q}% качество`, cellsCount: (n) => `${n} клеток`,
   },
@@ -521,7 +538,7 @@ const I18N = {
     statScanTime: "Continent scanned in",
     depositsGroup: "Valuable deposits", terrainGroup: "Terrain types",
     failedToCheck: "Failed to check",
-    best: (q) => `best ${q}%`, freeLabel: (n) => `free: ${n}`,
+    best: (q) => `best ${q}%`, topN: (n) => ` · top-${n}`, layerStars: "Quality stars", freeLabel: (n) => `free: ${n}`,
     badgeFree: "free", badgeOccupied: "claimed", badgeOwn: "our domain",
     tQuality: (q) => `${q}% quality`, cellsCount: (n) => `${n} cells`,
   },
@@ -923,6 +940,7 @@ let showBuildings = true;
 let showNature = true;
 let showGrid = true;
 let showRoads = true;
+let showStars = true;
 let showFreeOnly = false; // слой: только свободные клетки (выбранного типа или все месторождения)
 let selectedOwnerKey = null; // an ownerIdx, or null — spotlight one settlement's land
 
@@ -1011,6 +1029,7 @@ for (const [id, setter] of [
   ["layerNature", v => showNature = v],
   ["layerGrid", v => showGrid = v],
   ["layerRoads", v => showRoads = v],
+  ["layerStars", v => showStars = v],
   ["layerFailures", v => showFailed = v],
   ["layerFreeOnly", v => { showFreeOnly = v; cachedResourceMarkers = null; cachedFreeDeposits = null; }],
 ]) {
@@ -1020,6 +1039,37 @@ for (const [id, setter] of [
     render();
   });
 }
+function statusBadge(status) {
+  if (status === 1 || status === 2) return `<span class="m-badge m-badge-occupied">${t("badgeOccupied")}</span>`;
+  return `<span class="m-badge m-badge-free">${t("badgeFree")}</span>`;
+}
+function starsFor(q) { return q >= 90 ? 3 : q >= 75 ? 2 : q >= 50 ? 1 : 0; }
+// Раскрывающиеся списки клеток (лучшие по качеству / лучшие свободные): клик по строке — переход на карту.
+function makeCellListToggle(triggerEl, panelEl, rows) {
+  let built = false;
+  function build() {
+    built = true;
+    panelEl.innerHTML = rows.map(([q, x, y, status], ri) => `
+      <div class="top10-row" data-x="${x}" data-y="${y}">
+        <span class="top10-rank">${ri + 1}</span>
+        <span class="top10-coords">${formatCoords(x, y)}</span>
+        <span class="top10-stars">${"★".repeat(starsFor(q))}</span>
+        ${statusBadge(status)}
+        <span class="top10-quality">${q}%</span>
+      </div>
+    `).join("");
+    panelEl.querySelectorAll(".top10-row").forEach((r) => {
+      r.addEventListener("click", (e) => { e.stopPropagation(); jumpTo(parseFloat(r.dataset.x), parseFloat(r.dataset.y)); });
+    });
+  }
+  triggerEl.addEventListener("click", (e) => {
+    e.stopPropagation();
+    panelEl.hidden = !panelEl.hidden;
+    if (!panelEl.hidden && !built) build();
+    triggerEl.querySelector(".chev").textContent = panelEl.hidden ? "▸" : "▾";
+  });
+}
+
 function renderLegendList() {
   legendEl.innerHTML = "";
 
@@ -1069,12 +1119,16 @@ function renderLegendList() {
         <span class="type-glyph">${tileThumb(mt.code, mt.mineral, mt.color) || glyphSvg(mt.glyph, mt.color)}</span>
         <div class="legend-text">
           <div class="legend-name" title="${typeFullName(mt)}">${typeName(mt)}${mt.mineral ? '<span class="star">★</span>' : ""}</div>
-          <div class="legend-best">${t("best", best)}</div>
-          ${hasFree ? `<div class="legend-free">${t("freeLabel", fmtNum(mt.free))}</div>` : ""}
+          <div class="legend-best"><span class="chev">▸</span><span class="best-label">${t("best", best)}${mt.top.length > 1 ? t("topN", mt.top.length) : ""}</span></div>
+          ${hasFree ? `<div class="legend-free"><span class="chev">▸</span><span class="best-label">${t("freeLabel", fmtNum(mt.free))}</span></div>` : ""}
         </div>
         <span class="count">${fmtNum(mt.free)}/${fmtNum(mt.count)}</span>
       </div>
+      <div class="legend-top10" hidden></div>
+      ${hasFree ? '<div class="legend-top10 legend-top10-free" hidden></div>' : ""}
     `;
+    makeCellListToggle(row.querySelector(".legend-best"), row.querySelector(".legend-top10"), mt.top);
+    if (hasFree) makeCellListToggle(row.querySelector(".legend-free"), row.querySelector(".legend-top10-free"), mt.topFree);
     const main = row.querySelector(".legend-row-main");
     main.addEventListener("click", () => {
       selected = selected === i ? null : i;
@@ -1514,6 +1568,30 @@ function getRoadSet() {
   for (let i = 0; i < r.length; i += 2) add(r[i], r[i + 1]);
   return roadCache[key] = { set, pts };
 }
+function starPath(c, cx, cy, r) {
+  c.moveTo(cx, cy - r);
+  for (let i = 1; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.45 : r; c.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr); }
+  c.closePath();
+}
+// Звёзды качества на клетках месторождений: 90%+ три, 75%+ две, 50%+ одна.
+function drawQualityStars(viewW, viewH, sz, dim) {
+  if (!showStars || sz < 8 || selectedOwnerKey !== null) return;
+  const r = Math.max(2.6, Math.min(sz * 0.11, 7)), pad = sz;
+  ctx.save(); ctx.lineWidth = Math.max(1, r * 0.28); ctx.strokeStyle = "rgba(30,20,5,.9)"; ctx.fillStyle = "#ffd24a";
+  MAP_DATA.types.forEach((mt, ti) => {
+    if (!mt.mineral || (selected !== null && selected !== ti)) return;
+    for (const p of pointsByType[ti]) {
+      const n = starsFor(p[3]); if (!n) continue;
+      const [sx, sy] = worldToScreen(p[0], p[1]);
+      if (sx < -pad || sy < -pad || sx > viewW + pad || sy > viewH + pad) continue;
+      ctx.globalAlpha = (dim ? .5 : 1) * (p[4] === 0 ? 1 : .55);
+      ctx.beginPath();
+      for (let k = 0; k < n; k++) starPath(ctx, sx + sz - r * 1.35 - k * r * 2.1, sy + r * 1.5, r);
+      ctx.fill(); ctx.stroke();
+    }
+  });
+  ctx.restore();
+}
 function drawRoads(viewW, viewH, sz, dim) {
   if (!showRoads || sz < 4 || selectedOwnerKey !== null) return;
   const { set, pts } = getRoadSet(); if (!pts.length) return;
@@ -1857,6 +1935,7 @@ function render() {
   drawRoads(viewW, viewH, sz, dim);
   drawNatureIcons(viewW, viewH, sz, dim);
   drawBuildings(viewW, viewH, sz, dim);
+  drawQualityStars(viewW, viewH, sz, dim);
 
   mapTools.drawSettlements(viewW, viewH, sz, dim);
   ctx.globalAlpha = 1;
