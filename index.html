@@ -1031,6 +1031,7 @@ const layersCard = document.getElementById("layersCard");
 document.getElementById("layersToggle").addEventListener("click", () => {
   layersCard.hidden = !layersCard.hidden;
 });
+const SAVED_LAYERS = ["layerGrid", "layerRoads", "layerStars", "layerLandStars", "layerBuildings", "layerNature"];
 for (const [id, setter] of [
   ["layerBoundaries", v => showBoundaries = v],
   ["layerSettlements", v => showSettlements = v],
@@ -1045,8 +1046,13 @@ for (const [id, setter] of [
   ["layerFailures", v => showFailed = v],
   ["layerFreeOnly", v => { showFreeOnly = v; cachedResourceMarkers = null; cachedFreeDeposits = null; }],
 ]) {
-  document.getElementById(id).addEventListener("change", e => {
+  const el = document.getElementById(id), saveKey = "lolsite.layer." + id;
+  if (SAVED_LAYERS.includes(id)) {
+    try { const sv = localStorage.getItem(saveKey); if (sv !== null) { el.checked = sv === "1"; setter(el.checked); } } catch (e) {}
+  }
+  el.addEventListener("change", e => {
     setter(e.target.checked);
+    if (SAVED_LAYERS.includes(id)) { try { localStorage.setItem(saveKey, e.target.checked ? "1" : "0"); } catch (err) {} }
     if (id === "layerFailures" && failedRowRef) failedRowRef.classList.toggle("active", showFailed);
     render();
   });
@@ -1634,9 +1640,9 @@ function drawQualityStars(viewW, viewH, sz, dim) {
   });
   ctx.restore();
 }
-// Звёзды качества на обычной земле (луга, равнины, скалы и т.д.): мелкие, у нижнего края клетки; видны от 12 px/клетку.
+// Звёзды качества на обычной земле (луга, равнины, скалы и т.д.): мелкие, у нижнего края клетки; видны от 8 px/клетку.
 function drawLandStars(viewW, viewH, sz, dim) {
-  if (!showLandStars || sz < 12 || selectedOwnerKey !== null) return;
+  if (!showLandStars || sz < 8 || selectedOwnerKey !== null) return;
   const [wx0, wy0] = screenToWorld(0, 0), [wx1, wy1] = screenToWorld(viewW, viewH);
   const x0 = Math.floor(wx0) - 1, x1 = Math.ceil(wx1) + 1, y0 = Math.floor(wy0) - 1, y1 = Math.ceil(wy1) + 1;
   if ((x1 - x0) * (y1 - y0) > 40000) return;
