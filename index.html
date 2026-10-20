@@ -1587,6 +1587,13 @@ function starPath(c, cx, cy, r) {
   for (let i = 1; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.45 : r; c.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr); }
   c.closePath();
 }
+function drawQualityNumber(cx, cy, q, sz) {
+  const fs = Math.max(8, Math.min(sz * 0.15, 14));
+  ctx.save(); ctx.font = "bold " + fs + "px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.lineJoin = "round"; ctx.lineWidth = Math.max(2, fs * 0.28); ctx.strokeStyle = "rgba(20,14,4,.92)"; ctx.fillStyle = "#fff4cf";
+  ctx.strokeText(q + "%", cx, cy); ctx.fillText(q + "%", cx, cy);
+  ctx.restore();
+}
 // Звёзды качества на клетках месторождений (шкала halvesFor): ряд до пяти звёзд над клеткой, половинка — закрашена левая половина.
 function drawQualityStars(viewW, viewH, sz, dim) {
   if (!showStars || sz < 8 || selectedOwnerKey !== null) return;
@@ -1595,11 +1602,12 @@ function drawQualityStars(viewW, viewH, sz, dim) {
   MAP_DATA.types.forEach((mt, ti) => {
     if (!mt.mineral || (selected !== null && selected !== ti)) return;
     for (const p of pointsByType[ti]) {
-      const h = halvesFor(p[3]); if (!h) continue;
+      const h = halvesFor(p[3]);
       const [sx, sy] = worldToScreen(p[0], p[1]);
       if (sx < -pad || sy < -pad || sx > viewW + pad || sy > viewH + pad) continue;
       ctx.globalAlpha = (dim ? .5 : 1) * (p[4] === 0 ? 1 : .55);
       const full = h >> 1, n = full + (h & 1), x0 = sx + sz / 2 - (n - 1) * step / 2, cy = sy + r * 1.5;
+      if (sz >= 14) drawQualityNumber(sx + sz / 2, cy + r * 1.6 + Math.max(8, sz * 0.15) * 0.55, p[3], sz);
       for (let k = 0; k < n; k++) {
         const cx = x0 + k * step, half = k === full;
         ctx.beginPath(); starPath(ctx, cx, cy, r);
@@ -1622,9 +1630,10 @@ function drawLandStars(viewW, viewH, sz, dim) {
   for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
     const p = pointByCoord.get(x + "," + y); if (!p) continue;
     const mt = MAP_DATA.types[p[2]]; if (mt.mineral || mt.glyph === "water") continue;
-    const h = halvesFor(p[3]); if (!h) continue;
+    const h = halvesFor(p[3]);
     const [sx, sy] = worldToScreen(x, y);
     const full = h >> 1, n = full + (h & 1), cx0 = sx + sz / 2 - (n - 1) * step / 2, cy = sy + sz - r * 1.5;
+    if (sz >= 18) drawQualityNumber(sx + sz / 2, cy - r * 1.6 - Math.max(8, sz * 0.15) * 0.55, p[3], sz);
     for (let k = 0; k < n; k++) {
       const cx = cx0 + k * step, half = k === full;
       ctx.beginPath(); starPath(ctx, cx, cy, r);
