@@ -145,7 +145,7 @@
     display: flex; align-items: center; gap: 3px; min-width: 0;
   }
   #mapView .legend-free:hover { text-decoration: underline; }
-  #mapView .legend-top10 { margin: 2px 8px 6px 31px; border: 1px solid var(--panel-border); border-radius: 6px; overflow: hidden; }
+  #mapView .legend-top10 { margin: 2px 8px 6px 31px; border: 1px solid var(--panel-border); border-radius: 6px; overflow-x: hidden; overflow-y: auto; max-height: 220px; overscroll-behavior: contain; scrollbar-width: thin; }
   #mapView .top10-row { display: flex; align-items: center; gap: 8px; padding: 5px 9px; font-size: 0.74rem; border-bottom: 1px solid var(--panel-border); cursor: pointer; }
   #mapView .top10-row:last-child { border-bottom: none; }
   #mapView .top10-row:hover { background: rgba(201, 138, 62, 0.08); }
