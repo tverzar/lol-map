@@ -1564,7 +1564,7 @@ function drawResourceMarkers(viewW, viewH, size, dim) {
 // Значки зданий на свободных клетках (buildings.json рядом с index.html:
 // {ключ_континента: [[x, y, тип], ...]}). Рисуются при крупном масштабе.
 let BUILDINGS = {};
-fetch("buildings.json").then(r => r.ok ? r.json() : {}).then(j => { BUILDINGS = j; roadCache = {}; render(); }).catch(() => {});
+fetch("buildings.json").then(r => r.ok ? r.json() : {}).then(j => { BUILDINGS = j; roadCache = {}; objCache = {}; render(); }).catch(() => {});
 // Дороги: клетки с дорогой (типы улиц/перекрёстков/развилок/мостов из buildings.json
 // + roads.json — клетки, где в описании земли стоит значок дороги) соединяются
 // линиями между соседними клетками; на плитках остаются только дома.
@@ -1572,6 +1572,21 @@ let ROADS = {}, roadCache = {};
 fetch("roads.json").then(r => r.ok ? r.json() : {}).then(j => { ROADS = j; roadCache = {}; render(); }).catch(() => {});
 const ROAD_TYPES = new Set(["hstreet","vstreet","crossing","xcross","ostreet","orstreet","hbridge","vbridge","obridge","orbridge"]);
 function roadKey(x, y) { return (x + 50000) * 200000 + (y + 50000); }
+const OBJ_NAMES = {"house":["Дом","House"],"crossing":["Дом на перекрёстке","Crossroads house"],"xcross":["Диагональный перекрёсток","Diagonal crossroads"],"hstreet":["Улица запад-восток","East-west street"],"vstreet":["Улица север-юг","North-south street"],"ostreet":["Улица северо-восток - юго-запад","NE-SW street"],"orstreet":["Улица северо-запад - юго-восток","NW-SE street"],"square":["Площадь","Square"],"market":["Рыночная площадь","Marketplace"],"farm":["Ферма","Farm"],"hunting":["Хижина охотника","Hunter's hut"],"school":["Школа","School"],"temple":["Храм","Temple"],"well":["Колодец","Well"],"esfont":["Купель","Font"],"cemetery":["Кладбище","Cemetery"],"hut":["Хижины","Huts"],"sthouse":["Палафиты","Stilt houses"],"traphut":["Хижина трапперов","Trapper's hut"],"glthouse":["Маяк","Lighthouse"],"wcastle":["Деревянный замок","Wooden castle"],"dock":["Причал","Dock"],"fishboat":["Рыбацкие лодки","Fishing boats"],"hive":["Ульи","Beehives"],"bkhouse":["Пекарня","Bakehouse"],"bakery":["Лавка пекаря","Bakery"],"butcher":["Лавка мясника","Butcher"],"basketry":["Лавка плетельщика","Basketry"],"cutlery":["Лавка ножовщика","Cutlery"],"wheat":["Пшеничное поле","Wheat field"],"barley":["Ячменное поле","Barley field"],"oat":["Овсяное поле","Oat field"],"rice":["Рисовое поле","Rice field"],"hemp":["Конопляное поле","Hemp field"],"linen":["Льняное поле","Flax field"],"beet":["Свекольное поле","Beet field"],"potato":["Картофельное поле","Potato field"],"coffee":["Кофейная плантация","Coffee plantation"],"tea":["Чайная плантация","Tea plantation"],"hevea":["Плантация гевеи","Hevea plantation"],"field":["Вспаханное поле","Ploughed field"],"fallow":["Поле под паром","Fallow field"],"meadow":["Луг для сена","Hay meadow"],"vgarden":["Огород","Vegetable garden"],"orchard":["Плодовый сад","Orchard"],"plant":["Лесопосадка","Tree plantation"],"glasswrt":["Солеросовое поле","Glasswort field"],"barn":["Амбар","Barn"],"stable":["Конюшня","Stable"],"cowshed":["Коровник","Cowshed"],"pigsty":["Свинарник","Pigsty"],"sheepfld":["Овчарня","Sheepfold"],"whouse":["Склад","Warehouse"],"slaught":["Скотобойня","Slaughterhouse"],"limeston":["Известняковый карьер","Limestone quarry"],"sandston":["Песчаниковый карьер","Sandstone quarry"],"basalt":["Базальтовый карьер","Basalt quarry"],"granite":["Гранитный карьер","Granite quarry"],"clay":["Глиняный карьер","Clay pit"],"slate":["Шиферный карьер","Slate quarry"],"marble":["Мраморный карьер","Marble quarry"],"sand":["Песчаный карьер","Sand pit"],"smarsh":["Соляные пруды","Salt ponds"],"peat":["Торфяное болото","Peat bog"],"iron":["Железная шахта","Iron mine"],"tin":["Оловянная шахта","Tin mine"],"copper":["Медная шахта","Copper mine"],"silver":["Серебряная шахта","Silver mine"],"gold":["Золотая шахта","Gold mine"],"lead":["Свинцовая шахта","Lead mine"],"coal":["Угольная шахта","Coal mine"],"diamond":["Алмазная шахта","Diamond mine"],"saphir":["Сапфировая шахта","Sapphire mine"],"ruby":["Рубиновая шахта","Ruby mine"],"emerald":["Изумрудная шахта","Emerald mine"],"sulfur":["Серная шахта","Sulfur mine"],"workshop":["Мастерская","Workshop"],"forge":["Кузница","Forge"],"carpent":["Мастерская плотника","Carpenter's workshop"],"cabinet":["Столярная мастерская","Cabinetmaker's workshop"],"cooper":["Бондарная мастерская","Cooperage"],"wheelwr":["Колёсная мастерская","Wheelwright"],"toolfac":["Инструментальная мануфактура","Tool factory"],"nailfac":["Скобяная мастерская","Nail factory"],"pottery":["Гончарня","Pottery"],"byard":["Кирпичная мануфактура","Brickyard"],"limekiln":["Известковая печь","Lime kiln"],"bfurnace":["Сыродутная печь","Bloomery furnace"],"charcoal":["Угольная печь","Charcoal kiln"],"tarkiln":["Смоляная печь","Tar kiln"],"tannery":["Дубильня","Tannery"],"winery":["Винодельня","Winery"],"oilmill":["Маслобойня","Oil mill"],"pprmill":["Бумажная мануфактура","Paper mill"],"grnmill":["Мукомольная мельница","Grain mill"],"watmill":["Водяная мельница","Water mill"],"spinfac":["Прядильная мануфактура","Spinning factory"],"ropefac":["Верёвочная мастерская","Rope factory"],"hbridge":["Мост","Bridge"],"vbridge":["Мост","Bridge"],"obridge":["Мост","Bridge"],"orbridge":["Мост","Bridge"],"tree:teak":["Тик","Teak"],"tree:weirwood":["Чардрево","Weirwood"],"tree:spruce":["Ель","Spruce"],"tree:beech":["Бук","Beech"],"tree:oak":["Дуб","Oak"],"tree:fir":["Пихта","Fir"],"tree:pine":["Сосна","Pine"],"tree:larch":["Лиственница","Larch"],"tree:ash":["Ясень","Ash"],"tree:holmoak":["Каменный дуб","Holm oak"],"tree:maple":["Клён","Maple"],"tree:juniper":["Можжевельник","Juniper"],"tree:lime":["Липа","Lime"],"tree:cypress":["Кипарис","Cypress"],"tree:cedar":["Кедр","Cedar"],"tree:fern":["Папоротник","Fern"],"tree:poplar":["Тополь","Poplar"],"tree:chestnut":["Каштан","Chestnut"],"tree:corkoak":["Пробковый дуб","Cork oak"],"tree:hazel":["Орешник","Hazel"],"tree:birch":["Берёза","Birch"],"tree:vine":["Виноградная лоза","Grapevine"],"tree:olive":["Олива","Olive"],"tree:walnut":["Грецкий орех","Walnut"],"tree:plum":["Слива","Plum"],"tree:alder":["Ольха","Alder"],"tree:almond":["Миндаль","Almond"],"tree:apple":["Яблоня","Apple"],"tree:willow":["Ива","Willow"],"tree:bamboo":["Бамбук","Bamboo"],"tree:pear":["Груша","Pear"],"tree:lemon":["Лимон","Lemon"],"tree:cherry":["Вишня","Cherry"],"tree:apricot":["Абрикос","Apricot"],"tree:acacia":["Акация","Acacia"],"tree:banyan":["Баньян","Banyan"],"tree:orange":["Апельсин","Orange"],"tree:palm":["Пальма","Palm"],"tree:nutmeg":["Мускатный орех","Nutmeg"],"snestrt":["Поворот улицы (юг - северо-восток)","Street bend"],"eswstrt":["Поворот улицы (восток - юго-запад)","Street bend"],"enwstrt":["Поворот улицы (восток - северо-запад)","Street bend"],"wnestrt":["Поворот улицы (запад - северо-восток)","Street bend"],"wsestrt":["Поворот улицы (запад - юго-восток)","Street bend"],"nsestrt":["Поворот улицы (север - юго-восток)","Street bend"],"nswstrt":["Поворот улицы (север - юго-запад)","Street bend"],"snwstrt":["Поворот улицы (юг - северо-запад)","Street bend"],"wfork":["Развилка улиц","Street fork"],"efork":["Развилка улиц","Street fork"],"nfork":["Развилка улиц","Street fork"],"sfork":["Развилка улиц","Street fork"],"nwfork":["Развилка улиц","Street fork"],"nefork":["Развилка улиц","Street fork"],"swfork":["Развилка улиц","Street fork"],"sefork":["Развилка улиц","Street fork"]};
+let objCache = {};
+function cellObjectName(x, y) {
+  const key = ALL_DATA.continents[currentContinentIdx].key;
+  let m = objCache[key];
+  if (!m) {
+    m = objCache[key] = new Map();
+    for (const b of BUILDINGS[key] || []) m.set(b[0] + "," + b[1], b[2]);
+    const tr = TREES[key] || {};
+    for (const sp in tr) { const a = tr[sp]; for (let i = 0; i < a.length; i += 2) m.set(a[i] + "," + a[i + 1], "tree:" + sp); }
+  }
+  const t = m.get(x + "," + y); if (!t) return "";
+  const n = OBJ_NAMES[t]; return n ? n[currentLang === "ru" ? 0 : 1] : t;
+}
+window.cellObjectName = cellObjectName;
 function getRoadSet() {
   const key = ALL_DATA.continents[currentContinentIdx].key;
   if (roadCache[key]) return roadCache[key];
@@ -1804,7 +1819,7 @@ function drawBuildings(viewW, viewH, size, dim) {
 // Значки гор (по типу местности из data.json.gz) и деревьев (trees.json:
 // {ключ_континента: {порода: [x0, y0, x1, y1, ...]}}). Только при крупном масштабе.
 let TREES = {};
-fetch("trees.json").then(r => r.ok ? r.json() : {}).then(j => { TREES = j; render(); }).catch(() => {});
+fetch("trees.json").then(r => r.ok ? r.json() : {}).then(j => { TREES = j; objCache = {}; render(); }).catch(() => {});
 const MOUNTAIN_STYLE = {
   limeston:["#cbc4af","#8d866f"], basalt:["#575762","#2a2a32"], sandston:["#d3a465","#8f6a38"],
   granite:["#a58f8f","#6a5858"], marble:["#eeeae4","#a6a29c"], volcano:["#8c3b2a","#3a1510"], plateau:["#b39d77","#7b6a4a"],
@@ -2109,7 +2124,7 @@ canvas.addEventListener("mousemove", (e) => {
   const cursorPoint = pointByCoord.get(cellX + "," + cellY);
   const cursorWall = wallByCoord.get(cellX + "," + cellY);
   const wallLabel = cursorWall ? ` (${MAP_DATA.wallTypes[cursorWall] || cursorWall})` : "";
-  cursorTerrainEl.textContent = cursorPoint ? typeName(MAP_DATA.types[cursorPoint[2]]) + wallLabel : "—";
+  cursorTerrainEl.textContent = cursorPoint ? typeName(MAP_DATA.types[cursorPoint[2]]) + wallLabel + (cellObjectName(cellX, cellY) ? " · " + cellObjectName(cellX, cellY) : "") : "—";
   if (dragging) {
     offX += e.clientX - lastX;
     offY += e.clientY - lastY;
@@ -2124,7 +2139,8 @@ canvas.addEventListener("mousemove", (e) => {
   const mt = MAP_DATA.types[p[2]];
   const owner = MAP_DATA.owners[p[5]];
   const statusText = p[4] === 1 || p[4] === 2 ? `${t("badgeOccupied")}${owner ? ": " + owner : ""}` : t("badgeFree");
-  tooltip.innerHTML = `<span class="t-type">${typeFullName(mt)}</span><br>${t("tQuality", p[3])}<br>${statusText}`;
+  const objN = cellObjectName(p[0], p[1]);
+  tooltip.innerHTML = `<span class="t-type">${typeFullName(mt)}</span>${objN ? " · " + objN : ""}<br>${t("tQuality", p[3])}<br>${statusText}`;
   tooltip.style.left = (sx + 16) + "px";
   tooltip.style.top = (sy + 12) + "px";
   tooltip.style.display = "block";
@@ -2465,6 +2481,7 @@ const mapTools = (() => {
     const fields=[ [tr('Координаты','Coordinates'),formatCoords(picked.x,picked.y)] ];
     if(r) fields.push([tr('Площадь','Area'),fmtNum(r.count)+' '+tr('клеток','cells')]);
     else if(p) fields.push([tr('Качество','Quality'),p[3]+'%'],[tr('Статус','Status'),p[4]===0?tr('Свободно по скану','Free in scan'):tr('Занято по скану','Occupied in scan')]);
+    const objName=(!r&&window.cellObjectName)?window.cellObjectName(picked.x,picked.y):''; if(objName) fields.push([tr('Объект','Object'),objName]);
     if(owner) fields.push([tr('Владение','Domain'),owner]);
     if(lord) fields.push([tr('Лорд','Lord'),lord]);
     const wall=wallByCoord.get(picked.x+','+picked.y); if(wall) fields.push([tr('Укрепление','Fortification'),MAP_DATA.wallTypes[wall]||wall]);
