@@ -475,18 +475,18 @@
     <button class="layers-toggle" id="layersToggle" data-i18n-title="layersTitle" title="Слои">≋</button>
     <div class="layers-card" id="layersCard" hidden>
       <div class="layers-title" data-i18n="layersTitle">Слои карты</div>
-      <label class="layer-line"><input type="checkbox" id="layerBoundaries" checked><span data-i18n="layerBoundaries">Границы владений</span></label>
-      <label class="layer-line"><input type="checkbox" id="layerSettlements" checked><span data-i18n="layerSettlements">Маркеры поселений</span></label>
-      <label class="layer-line"><input type="checkbox" id="layerResources" checked><span data-i18n="layerResources">Значки месторождений</span></label>
-      <label class="layer-line"><input type="checkbox" id="layerLandStars"><span data-i18n="layerLandStars">Звёзды на земле</span></label>
-      <label class="layer-line"><input type="checkbox" id="layerStars" checked><span data-i18n="layerStars">Звёзды качества</span></label>
-      <label class="layer-line"><input type="checkbox" id="layerRoads" checked><span data-i18n="layerRoads">Дороги</span></label>
-      <label class="layer-line"><input type="checkbox" id="layerGrid" checked><span data-i18n="layerGrid">Сетка клеток</span></label>
-      <label class="layer-line"><input type="checkbox" id="layerNature" checked><span data-i18n="layerNature">Деревья и горы</span></label>
-      <label class="layer-line"><input type="checkbox" id="layerBuildings" checked><span data-i18n="layerBuildings">Значки зданий</span></label>
-      <label class="layer-line"><input type="checkbox" id="layerWalls" checked><span data-i18n="layerWalls">Стены и укрепления</span></label>
-      <label class="layer-line"><input type="checkbox" id="layerFreeOnly"><span data-i18n="layerFreeOnly">Только свободные клетки</span></label>
-      <label class="layer-line"><input type="checkbox" id="layerFailures" checked><span data-i18n="layerFailures">Ошибки проверки</span></label>
+      <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerBoundaries" checked><span data-i18n="layerBoundaries">Границы владений</span></label>
+      <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerSettlements" checked><span data-i18n="layerSettlements">Маркеры поселений</span></label>
+      <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerResources" checked><span data-i18n="layerResources">Значки месторождений</span></label>
+      <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerLandStars"><span data-i18n="layerLandStars">Звёзды на земле</span></label>
+      <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerStars" checked><span data-i18n="layerStars">Звёзды качества</span></label>
+      <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerRoads" checked><span data-i18n="layerRoads">Дороги</span></label>
+      <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerGrid" checked><span data-i18n="layerGrid">Сетка клеток</span></label>
+      <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerNature" checked><span data-i18n="layerNature">Деревья и горы</span></label>
+      <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerBuildings" checked><span data-i18n="layerBuildings">Значки зданий</span></label>
+      <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerWalls" checked><span data-i18n="layerWalls">Стены и укрепления</span></label>
+      <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerFreeOnly"><span data-i18n="layerFreeOnly">Только свободные клетки</span></label>
+      <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerFailures"><span data-i18n="layerFailures">Ошибки проверки</span></label>
       <div class="layer-owner-title" data-i18n="layersOwners">Владения</div>
       <div class="layer-owner-list" id="layerOwnerList"></div>
     </div>
@@ -1050,6 +1050,7 @@ for (const [id, setter] of [
   if (SAVED_LAYERS.includes(id)) {
     try { const sv = localStorage.getItem(saveKey); if (sv !== null) { el.checked = sv === "1"; setter(el.checked); } } catch (e) {}
   }
+  if (id !== "layerFreeOnly") setter(el.checked);  // флаг всегда берётся из состояния галочки (браузер мог восстановить её сам)
   el.addEventListener("change", e => {
     setter(e.target.checked);
     if (SAVED_LAYERS.includes(id)) { try { localStorage.setItem(saveKey, e.target.checked ? "1" : "0"); } catch (err) {} }
