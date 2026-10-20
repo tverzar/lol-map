@@ -453,6 +453,7 @@
       <label class="layer-line"><input type="checkbox" id="layerBoundaries" checked><span data-i18n="layerBoundaries">Границы владений</span></label>
       <label class="layer-line"><input type="checkbox" id="layerSettlements" checked><span data-i18n="layerSettlements">Маркеры поселений</span></label>
       <label class="layer-line"><input type="checkbox" id="layerResources" checked><span data-i18n="layerResources">Значки месторождений</span></label>
+      <label class="layer-line"><input type="checkbox" id="layerGrid" checked><span data-i18n="layerGrid">Сетка клеток</span></label>
       <label class="layer-line"><input type="checkbox" id="layerNature" checked><span data-i18n="layerNature">Деревья и горы</span></label>
       <label class="layer-line"><input type="checkbox" id="layerBuildings" checked><span data-i18n="layerBuildings">Значки зданий</span></label>
       <label class="layer-line"><input type="checkbox" id="layerWalls" checked><span data-i18n="layerWalls">Стены и укрепления</span></label>
@@ -483,7 +484,7 @@ const I18N = {
     coordinatesLabel: "Координаты", terrainLabel: "Местность", zoomLabel: "Масштаб",
     layersTitle: "Слои карты",
     layerBoundaries: "Границы владений", layerSettlements: "Маркеры поселений",
-    layerResources: "Значки месторождений", layerBuildings: "Значки зданий", layerNature: "Деревья и горы", legHouse: "Дом", legField: "Поле, сад", legBarn: "Амбар, хлев", legSchool: "Школа", legTemple: "Храм", legMarket: "Рынок", legWorkshop: "Мастерская", legQuarry: "Карьер", legMine: "Рудник", legWell: "Колодец", legRoad: "Дорога", legConifer: "Хвойное", legBroad: "Лиственное", legFruit: "Плодовое", legMountain: "Гора", legPlateau: "Плато", legendTitle: "Легенда значков", legCastle: "Замок", layerWalls: "Стены и укрепления",
+    layerResources: "Значки месторождений", layerBuildings: "Значки зданий", layerNature: "Деревья и горы", layerGrid: "Сетка клеток", legHouse: "Дом", legField: "Поле, сад", legBarn: "Амбар, хлев", legSchool: "Школа", legTemple: "Храм", legMarket: "Рынок", legWorkshop: "Мастерская", legQuarry: "Карьер", legMine: "Рудник", legWell: "Колодец", legRoad: "Дорога", legConifer: "Хвойное", legBroad: "Лиственное", legFruit: "Плодовое", legMountain: "Гора", legPlateau: "Плато", legendTitle: "Легенда значков", legCastle: "Замок", layerWalls: "Стены и укрепления",
     layerFailures: "Ошибки проверки", layersOwners: "Владения",
     layerFreeOnly: "Только свободные клетки",
     snapshotFrom: "Снимок от", updatedPrefix: "обновлено", justNow: "только что",
@@ -508,7 +509,7 @@ const I18N = {
     coordinatesLabel: "Coordinates", terrainLabel: "Terrain", zoomLabel: "Zoom",
     layersTitle: "Map layers",
     layerBoundaries: "Domain borders", layerSettlements: "Settlement markers",
-    layerResources: "Deposit markers", layerBuildings: "Building icons", layerNature: "Trees & mountains", legHouse: "House", legField: "Field, orchard", legBarn: "Barn, stable", legSchool: "School", legTemple: "Temple", legMarket: "Market", legWorkshop: "Workshop", legQuarry: "Quarry", legMine: "Mine", legWell: "Well", legRoad: "Road", legConifer: "Conifer", legBroad: "Broadleaf", legFruit: "Fruit tree", legMountain: "Mountain", legPlateau: "Plateau", legendTitle: "Icon legend", legCastle: "Castle", layerWalls: "Walls & fortifications",
+    layerResources: "Deposit markers", layerBuildings: "Building icons", layerNature: "Trees & mountains", layerGrid: "Cell grid", legHouse: "House", legField: "Field, orchard", legBarn: "Barn, stable", legSchool: "School", legTemple: "Temple", legMarket: "Market", legWorkshop: "Workshop", legQuarry: "Quarry", legMine: "Mine", legWell: "Well", legRoad: "Road", legConifer: "Conifer", legBroad: "Broadleaf", legFruit: "Fruit tree", legMountain: "Mountain", legPlateau: "Plateau", legendTitle: "Icon legend", legCastle: "Castle", layerWalls: "Walls & fortifications",
     layerFailures: "Scan failures", layersOwners: "Domains",
     layerFreeOnly: "Free cells only",
     snapshotFrom: "Snapshot from", updatedPrefix: "updated", justNow: "just now",
@@ -919,6 +920,7 @@ let showResourceMarkers = true;
 let showWalls = true;
 let showBuildings = true;
 let showNature = true;
+let showGrid = true;
 let showFreeOnly = false; // слой: только свободные клетки (выбранного типа или все месторождения)
 let selectedOwnerKey = null; // an ownerIdx, or null — spotlight one settlement's land
 
@@ -1005,6 +1007,7 @@ for (const [id, setter] of [
   ["layerWalls", v => showWalls = v],
   ["layerBuildings", v => showBuildings = v],
   ["layerNature", v => showNature = v],
+  ["layerGrid", v => showGrid = v],
   ["layerFailures", v => showFailed = v],
   ["layerFreeOnly", v => { showFreeOnly = v; cachedResourceMarkers = null; cachedFreeDeposits = null; }],
 ]) {
@@ -1737,6 +1740,19 @@ function render() {
   if (mapTools.mode === "owners") ctx.drawImage(ownershipCanvas, imgX, imgY, ownershipCanvas.width * PT * scale, ownershipCanvas.height * PT * scale);
   if (showBoundaries && sz < (mapTools.mode === "terrain" ? 2 : 8)) {
     ctx.drawImage(boundaryCanvas, imgX, imgY, boundaryCanvas.width * PT * scale, boundaryCanvas.height * PT * scale);
+  }
+
+  if (showGrid && sz >= 6 && mapTools.mode === "terrain") {
+    const [gx, gy] = worldToScreen(Math.floor(minX), Math.floor(minY));
+    const ox = ((gx % sz) + sz) % sz, oy = ((gy % sz) + sz) % sz;
+    ctx.save();
+    ctx.strokeStyle = "rgba(10,14,20," + Math.min(0.22, 0.05 + sz * 0.004) + ")";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let x = ox; x < viewW; x += sz) { const px = Math.round(x) + 0.5; ctx.moveTo(px, 0); ctx.lineTo(px, viewH); }
+    for (let y = oy; y < viewH; y += sz) { const py = Math.round(y) + 0.5; ctx.moveTo(0, py); ctx.lineTo(viewW, py); }
+    ctx.stroke();
+    ctx.restore();
   }
 
   // When a type or owner is selected, dim the whole image and redraw just
