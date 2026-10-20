@@ -153,6 +153,7 @@
   #mapView .top10-coords { flex: 1; font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace; color: var(--ink); }
   #mapView .top10-quality { font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace; color: var(--ink-dim); }
   #mapView .top10-stars { color: #f0bd63; letter-spacing: -1px; font-size: 0.7rem; flex: none; }
+  #mapView .half-star { background: linear-gradient(90deg, #f0bd63 50%, rgba(240,189,99,.28) 50%); -webkit-background-clip: text; background-clip: text; color: transparent; }
   #mapView .m-badge { font-size: 0.68rem; padding: 1px 6px; border-radius: 4px; flex: none; white-space: nowrap; }
   #mapView .m-badge-free { background: rgba(107, 143, 90, 0.22); color: #9fd68a; }
   #mapView .m-badge-occupied { background: rgba(179, 69, 61, 0.22); color: #e08f8f; }
@@ -1053,7 +1054,7 @@ function statusBadge(status) {
 }
 // Шкала 0-5 звёзд с половинками: меньше 10% — нет, каждые 10% — полузвезда, 99% и выше — пять.
 function halvesFor(q) { return q >= 99 ? 10 : q < 10 ? 0 : Math.floor(q / 10); }
-function starsText(q) { const h = halvesFor(q); return "★".repeat(h >> 1) + (h & 1 ? "½" : ""); }
+function starsText(q) { const h = halvesFor(q); return "★".repeat(h >> 1) + (h & 1 ? '<span class="half-star">★</span>' : ""); }
 // Раскрывающиеся списки клеток (лучшие по качеству / лучшие свободные): клик по строке — переход на карту.
 function makeCellListToggle(triggerEl, panelEl, rows) {
   let built = false;
@@ -2488,7 +2489,7 @@ const mapTools = (() => {
     drawList();
   }
   function drawList() {
-    const stars=q=>{const h=q>=99?10:q<10?0:Math.floor(q/10);return '★'.repeat(h>>1)+(h&1?'½':'');};
+    const stars=q=>{const h=q>=99?10:q<10?0:Math.floor(q/10);return '★'.repeat(h>>1)+(h&1?'<span style="background:linear-gradient(90deg,#f0bd63 50%,rgba(240,189,99,.28) 50%);-webkit-background-clip:text;background-clip:text;color:transparent">★</span>':'');};
     $('listResults').innerHTML=listRows.slice(0,listLimit).map(p=>`<button class="result-main" data-resource-cell="${p[0]},${p[1]}" style="width:100%;margin-bottom:4px">${esc(typeName(MAP_DATA.types[p[2]]))} · ${p[3]}% <span style="color:#f0bd63">${stars(p[3])}</span><small>${formatCoords(p[0],p[1])} · ${p[4]===0?tr('свободно','free'):tr('занято','claimed')}</small></button>`).join('')+(listRows.length>listLimit?`<button id="moreList" style="width:100%">${label('more')}</button>`:'');
     if($('moreList')) $('moreList').onclick=()=>{listLimit+=100;drawList();};
   }
