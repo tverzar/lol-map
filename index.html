@@ -380,8 +380,16 @@
     <nav class="side-tabs" aria-label="Map tools">
       <button data-panel="resource" class="active" data-mt="resources">Ресурсы</button>
       <button data-panel="owner" data-mt="owners">Владения</button>
+      <button data-panel="list" data-mt="list">Список</button>
       <button data-panel="plan" data-mt="plan">План</button>
     </nav>
+    <section id="listPanel" class="side-panel" hidden>
+      <label><span data-mt="resource">Ресурс</span><select id="listType"></select></label>
+      <div class="filter-pair"><label><span data-mt="quality">Качество от, %</span><input id="listQuality" type="number" min="0" max="100" value="0"></label></div>
+      <label class="check"><input id="listFree" type="checkbox" checked><span data-mt="freeOnly">Свободные по данным скана</span></label>
+      <p id="listCount" class="muted" aria-live="polite"></p>
+      <div id="listResults"></div>
+    </section>
     <section id="ownerPanel" class="side-panel" hidden>
       <label><span data-mt="findOwner">Поселение или лорд</span><input id="ownerSearch" type="search" autocomplete="off"></label>
       <label class="check"><input type="checkbox" id="ownersVisible"><span data-mt="visibleOnly">В видимой области</span></label>
@@ -2289,7 +2297,7 @@ const mapTools = (() => {
   const tr = (ru,en) => currentLang === 'ru' ? ru : en;
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const words = {
-    close:['Закрыть','Close'], resources:['Ресурсы','Resources'], owners:['Владения','Domains'], plan:['План','Plan'],
+    close:['Закрыть','Close'], resources:['Ресурсы','Resources'], owners:['Владения','Domains'], plan:['План','Plan'], list:['Список','List'],
     terrain:['Местность','Terrain'], findOwner:['Поселение или лорд','Settlement or lord'], visibleOnly:['В видимой области','In visible area'], favoritesOnly:['Только избранное','Favorites only'],
     sort:['Сортировка','Sort'], bySize:['По площади','By area'], byName:['По названию','By name'], byDistance:['По расстоянию','By distance'], byQuality:['По качеству','By quality'],
     more:['Показать ещё','Show more'], savedPlaces:['Сохранённые места','Saved places'], variant:['Вариант плана','Plan variant'],
@@ -2359,10 +2367,11 @@ const mapTools = (() => {
   function closeSidebar() { document.querySelector('#mapView .sidebar').classList.remove('open'); $('openSidebar').setAttribute('aria-expanded','false'); }
   function setPanel(panel) {
     state.panel=panel;
-    for(const name of ['resource','owner','plan']) $(name+'Panel').hidden=name!==panel;
+    for(const name of ['resource','owner','list','plan']) $(name+'Panel').hidden=name!==panel;
     document.querySelectorAll('[data-panel]').forEach(b=>{b.classList.toggle('active',b.dataset.panel===panel);b.setAttribute('aria-pressed',String(b.dataset.panel===panel));});
     if(panel!=='plan') setTool('pan');
     if(panel==='owner') renderOwners();
+    if(panel==='list') renderList();
     render();
   }
   function setMode(mode) {
@@ -2457,6 +2466,24 @@ const mapTools = (() => {
     results.sort((a,b)=>filter.sort==='quality'?b.p[3]-a.p[3]||a.distance-b.distance:a.distance-b.distance||b.p[3]-a.p[3]);
     resultSet=new Set(results.map(r=>pointKey(r.p))); resourceLimit=80;state.resourceFilterActive=true;selected=null;selectedOwnerKey=null;picked=null;$('objectCard').hidden=true;
     setMode('resources');renderResourceResults();updateLegendActive();
+  }
+  let listRows=[], listLimit=100;
+  function renderList() {
+    const code=$('listType').value, minQ=Number($('listQuality').value)||0, free=$('listFree').checked;
+    const rows=[];
+    MAP_DATA.types.forEach((t,i)=>{
+      if(!t.mineral||(code&&t.code!==code)) return;
+      for(const p of pointsByType[i]) { if(p[3]<minQ||(free&&p[4]!==0)) continue; rows.push(p); }
+    });
+    rows.sort((a,b)=>b[3]-a[3]||a[2]-b[2]||a[0]-b[0]||a[1]-b[1]);
+    listRows=rows;
+    $('listCount').textContent=tr('Найдено клеток: ','Cells found: ')+fmtNum(rows.length);
+    drawList();
+  }
+  function drawList() {
+    const stars=q=>q>=90?'★★★':q>=75?'★★':q>=50?'★':'';
+    $('listResults').innerHTML=listRows.slice(0,listLimit).map(p=>`<button class="result-main" data-resource-cell="${p[0]},${p[1]}" style="width:100%;margin-bottom:4px">${esc(typeName(MAP_DATA.types[p[2]]))} · ${p[3]}% <span style="color:#f0bd63">${stars(p[3])}</span><small>${formatCoords(p[0],p[1])} · ${p[4]===0?tr('свободно','free'):tr('занято','claimed')}</small></button>`).join('')+(listRows.length>listLimit?`<button id="moreList" style="width:100%">${label('more')}</button>`:'');
+    if($('moreList')) $('moreList').onclick=()=>{listLimit+=100;drawList();};
   }
   function renderResourceResults() {
     $('resourceResults').hidden=!state.resourceFilterActive;
@@ -2754,6 +2781,8 @@ const mapTools = (() => {
     document.querySelectorAll('[data-mt]').forEach(el=>el.textContent=label(el.dataset.mt));
     $('miniMap').setAttribute('aria-label',tr('Обзор континента: нажмите для перехода','Continent overview: click to navigate'));
     $('resourceType').options[0].textContent=label('allResources');for(const option of [...$('resourceType').options].slice(1)){const t=MAP_DATA.types.find(t=>t.code===option.value);if(t)option.textContent=typeName(t);}
+    $('listType').options[0].textContent=label('allResources');for(const option of [...$('listType').options].slice(1)){const t=MAP_DATA.types.find(t=>t.code===option.value);if(t)option.textContent=typeName(t);}
+    if(state.panel==='list') renderList();
     renderOwners();renderResourceResults();showCard();const pending=draft;setTool(state.tool);draft=pending;render();
   }
   function onData() {
@@ -2770,6 +2799,7 @@ const mapTools = (() => {
       return {...m,lord:lords[m.name]||'',bounds:b};
     });
     $('resourceType').innerHTML=`<option value="">${label('allResources')}</option>`+MAP_DATA.types.filter(t=>t.mineral).map(t=>`<option value="${esc(t.code)}">${esc(typeName(t))}</option>`).join('');
+    $('listType').innerHTML=$('resourceType').innerHTML;$('listQuality').value='0';$('listFree').checked=true;listLimit=100;
     $('resourceOrigin').value=formatCoords(...reference);$('objectCard').hidden=true;$('resourceResults').hidden=true;
     $('ownerSearch').value='';ownerLimit=80;$('resourceQuality').value='0';$('resourceRadius').value='';$('resourceFree').checked=true;$('resourceSort').value='distance';
     state.ready=true;if(!plans.length)newPlan();else{loadOverlay();updatePlanUI();}
@@ -2797,6 +2827,8 @@ const mapTools = (() => {
   };
   $('applyResourceFilter').onclick=filterResources;$('resetResourceFilter').onclick=clearFilter;
   $('useMapCenter').onclick=()=>{$('resourceOrigin').value=formatCoords(...snap(center()));};
+  $('listResults').onclick=e=>{const b=e.target.closest('[data-resource-cell]');if(b)pickCell(...b.dataset.resourceCell.split(',').map(Number),true);};
+  for(const id of ['listType','listQuality','listFree']) $(id).addEventListener(id==='listQuality'?'input':'change',()=>{listLimit=100;renderList();});
   $('resourceResults').onclick=e=>{const b=e.target.closest('[data-resource-cell]');if(b)pickCell(...b.dataset.resourceCell.split(',').map(Number),true);};
   // «Сбросить» возвращает карту в исходное состояние целиком: режим «Местность», слои по умолчанию, без фильтра и выбора.
   $('resetBtn').addEventListener('click',()=>{
