@@ -1742,11 +1742,11 @@ function render() {
     ctx.drawImage(boundaryCanvas, imgX, imgY, boundaryCanvas.width * PT * scale, boundaryCanvas.height * PT * scale);
   }
 
-  if (showGrid && sz >= 6 && mapTools.mode === "terrain") {
+  if (showGrid && sz >= 4 && mapTools.mode === "terrain") {
     const [gx, gy] = worldToScreen(Math.floor(minX), Math.floor(minY));
     const ox = ((gx % sz) + sz) % sz, oy = ((gy % sz) + sz) % sz;
     ctx.save();
-    ctx.strokeStyle = "rgba(10,14,20," + Math.min(0.22, 0.05 + sz * 0.004) + ")";
+    ctx.strokeStyle = "rgba(10,14,20," + Math.min(0.28, 0.12 + sz * 0.005) + ")";
     ctx.lineWidth = 1;
     ctx.beginPath();
     for (let x = ox; x < viewW; x += sz) { const px = Math.round(x) + 0.5; ctx.moveTo(px, 0); ctx.lineTo(px, viewH); }
