@@ -1051,7 +1051,9 @@ function statusBadge(status) {
   if (status === 1 || status === 2) return `<span class="m-badge m-badge-occupied">${t("badgeOccupied")}</span>`;
   return `<span class="m-badge m-badge-free">${t("badgeFree")}</span>`;
 }
-function starsFor(q) { return q >= 90 ? 3 : q >= 75 ? 2 : q >= 50 ? 1 : 0; }
+// Шкала 0-5 звёзд с половинками: меньше 10% — нет, каждые 10% — полузвезда, 99% и выше — пять.
+function halvesFor(q) { return q >= 99 ? 10 : q < 10 ? 0 : Math.floor(q / 10); }
+function starsText(q) { const h = halvesFor(q); return "★".repeat(h >> 1) + (h & 1 ? "½" : ""); }
 // Раскрывающиеся списки клеток (лучшие по качеству / лучшие свободные): клик по строке — переход на карту.
 function makeCellListToggle(triggerEl, panelEl, rows) {
   let built = false;
@@ -1061,7 +1063,7 @@ function makeCellListToggle(triggerEl, panelEl, rows) {
       <div class="top10-row" data-x="${x}" data-y="${y}">
         <span class="top10-rank">${ri + 1}</span>
         <span class="top10-coords">${formatCoords(x, y)}</span>
-        <span class="top10-stars">${"★".repeat(starsFor(q))}</span>
+        <span class="top10-stars">${starsText(q)}</span>
         ${statusBadge(status)}
         <span class="top10-quality">${q}%</span>
       </div>
@@ -1581,21 +1583,26 @@ function starPath(c, cx, cy, r) {
   for (let i = 1; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.45 : r; c.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr); }
   c.closePath();
 }
-// Звёзды качества на клетках месторождений: 90%+ три, 75%+ две, 50%+ одна.
+// Звёзды качества на клетках месторождений (шкала halvesFor): ряд до пяти звёзд над клеткой, половинка — закрашена левая половина.
 function drawQualityStars(viewW, viewH, sz, dim) {
   if (!showStars || sz < 8 || selectedOwnerKey !== null) return;
-  const r = Math.max(2.6, Math.min(sz * 0.11, 7)), pad = sz;
-  ctx.save(); ctx.lineWidth = Math.max(1, r * 0.28); ctx.strokeStyle = "rgba(30,20,5,.9)"; ctx.fillStyle = "#ffd24a";
+  const r = Math.max(2.2, Math.min(sz * 0.085, 7)), step = r * 2.05, pad = sz;
+  ctx.save(); ctx.lineWidth = Math.max(1, r * 0.3); ctx.lineJoin = "round";
   MAP_DATA.types.forEach((mt, ti) => {
     if (!mt.mineral || (selected !== null && selected !== ti)) return;
     for (const p of pointsByType[ti]) {
-      const n = starsFor(p[3]); if (!n) continue;
+      const h = halvesFor(p[3]); if (!h) continue;
       const [sx, sy] = worldToScreen(p[0], p[1]);
       if (sx < -pad || sy < -pad || sx > viewW + pad || sy > viewH + pad) continue;
       ctx.globalAlpha = (dim ? .5 : 1) * (p[4] === 0 ? 1 : .55);
-      ctx.beginPath();
-      for (let k = 0; k < n; k++) starPath(ctx, sx + sz - r * 1.35 - k * r * 2.1, sy + r * 1.5, r);
-      ctx.fill(); ctx.stroke();
+      const full = h >> 1, n = full + (h & 1), x0 = sx + sz / 2 - (n - 1) * step / 2, cy = sy + r * 1.5;
+      for (let k = 0; k < n; k++) {
+        const cx = x0 + k * step, half = k === full;
+        ctx.beginPath(); starPath(ctx, cx, cy, r);
+        ctx.fillStyle = half ? "rgba(30,20,5,.55)" : "#ffd24a"; ctx.fill();
+        if (half) { ctx.save(); ctx.beginPath(); ctx.rect(cx - r, cy - r, r, r * 2); ctx.clip(); ctx.beginPath(); starPath(ctx, cx, cy, r); ctx.fillStyle = "#ffd24a"; ctx.fill(); ctx.restore(); }
+        ctx.strokeStyle = "rgba(30,20,5,.9)"; ctx.beginPath(); starPath(ctx, cx, cy, r); ctx.stroke();
+      }
     }
   });
   ctx.restore();
@@ -2481,7 +2488,7 @@ const mapTools = (() => {
     drawList();
   }
   function drawList() {
-    const stars=q=>q>=90?'★★★':q>=75?'★★':q>=50?'★':'';
+    const stars=q=>{const h=q>=99?10:q<10?0:Math.floor(q/10);return '★'.repeat(h>>1)+(h&1?'½':'');};
     $('listResults').innerHTML=listRows.slice(0,listLimit).map(p=>`<button class="result-main" data-resource-cell="${p[0]},${p[1]}" style="width:100%;margin-bottom:4px">${esc(typeName(MAP_DATA.types[p[2]]))} · ${p[3]}% <span style="color:#f0bd63">${stars(p[3])}</span><small>${formatCoords(p[0],p[1])} · ${p[4]===0?tr('свободно','free'):tr('занято','claimed')}</small></button>`).join('')+(listRows.length>listLimit?`<button id="moreList" style="width:100%">${label('more')}</button>`:'');
     if($('moreList')) $('moreList').onclick=()=>{listLimit+=100;drawList();};
   }
