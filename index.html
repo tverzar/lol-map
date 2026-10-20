@@ -478,6 +478,7 @@
       <label class="layer-line"><input type="checkbox" id="layerBoundaries" checked><span data-i18n="layerBoundaries">Границы владений</span></label>
       <label class="layer-line"><input type="checkbox" id="layerSettlements" checked><span data-i18n="layerSettlements">Маркеры поселений</span></label>
       <label class="layer-line"><input type="checkbox" id="layerResources" checked><span data-i18n="layerResources">Значки месторождений</span></label>
+      <label class="layer-line"><input type="checkbox" id="layerLandStars"><span data-i18n="layerLandStars">Звёзды на земле</span></label>
       <label class="layer-line"><input type="checkbox" id="layerStars" checked><span data-i18n="layerStars">Звёзды качества</span></label>
       <label class="layer-line"><input type="checkbox" id="layerRoads" checked><span data-i18n="layerRoads">Дороги</span></label>
       <label class="layer-line"><input type="checkbox" id="layerGrid" checked><span data-i18n="layerGrid">Сетка клеток</span></label>
@@ -522,7 +523,7 @@ const I18N = {
     statScanTime: "Континент пройден за",
     depositsGroup: "Ценные месторождения", terrainGroup: "Типы местности",
     failedToCheck: "Не удалось проверить",
-    best: (q) => `лучшее ${q}%`, topN: (n) => ` · топ-${n}`, layerStars: "Звёзды качества", freeLabel: (n) => `свободно: ${n}`,
+    best: (q) => `лучшее ${q}%`, topN: (n) => ` · топ-${n}`, layerStars: "Звёзды качества", layerLandStars: "Звёзды на земле", freeLabel: (n) => `свободно: ${n}`,
     badgeFree: "свободно", badgeOccupied: "занято", badgeOwn: "наш домен",
     tQuality: (q) => `${q}% качество`, cellsCount: (n) => `${n} клеток`,
   },
@@ -547,7 +548,7 @@ const I18N = {
     statScanTime: "Continent scanned in",
     depositsGroup: "Valuable deposits", terrainGroup: "Terrain types",
     failedToCheck: "Failed to check",
-    best: (q) => `best ${q}%`, topN: (n) => ` · top-${n}`, layerStars: "Quality stars", freeLabel: (n) => `free: ${n}`,
+    best: (q) => `best ${q}%`, topN: (n) => ` · top-${n}`, layerStars: "Quality stars", layerLandStars: "Stars on land", freeLabel: (n) => `free: ${n}`,
     badgeFree: "free", badgeOccupied: "claimed", badgeOwn: "our domain",
     tQuality: (q) => `${q}% quality`, cellsCount: (n) => `${n} cells`,
   },
@@ -950,6 +951,7 @@ let showNature = true;
 let showGrid = true;
 let showRoads = true;
 let showStars = true;
+let showLandStars = false;
 let showFreeOnly = false; // слой: только свободные клетки (выбранного типа или все месторождения)
 let selectedOwnerKey = null; // an ownerIdx, or null — spotlight one settlement's land
 
@@ -1039,6 +1041,7 @@ for (const [id, setter] of [
   ["layerGrid", v => showGrid = v],
   ["layerRoads", v => showRoads = v],
   ["layerStars", v => showStars = v],
+  ["layerLandStars", v => showLandStars = v],
   ["layerFailures", v => showFailed = v],
   ["layerFreeOnly", v => { showFreeOnly = v; cachedResourceMarkers = null; cachedFreeDeposits = null; }],
 ]) {
@@ -1608,6 +1611,30 @@ function drawQualityStars(viewW, viewH, sz, dim) {
   });
   ctx.restore();
 }
+// Звёзды качества на обычной земле (луга, равнины, скалы и т.д.): мелкие, у нижнего края клетки; видны от 12 px/клетку.
+function drawLandStars(viewW, viewH, sz, dim) {
+  if (!showLandStars || sz < 12 || selectedOwnerKey !== null) return;
+  const [wx0, wy0] = screenToWorld(0, 0), [wx1, wy1] = screenToWorld(viewW, viewH);
+  const x0 = Math.floor(wx0) - 1, x1 = Math.ceil(wx1) + 1, y0 = Math.floor(wy0) - 1, y1 = Math.ceil(wy1) + 1;
+  if ((x1 - x0) * (y1 - y0) > 40000) return;
+  const r = Math.max(2, Math.min(sz * 0.065, 5)), step = r * 2.05;
+  ctx.save(); ctx.lineWidth = Math.max(1, r * 0.3); ctx.lineJoin = "round"; ctx.globalAlpha = dim ? .5 : .95;
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+    const p = pointByCoord.get(x + "," + y); if (!p) continue;
+    const mt = MAP_DATA.types[p[2]]; if (mt.mineral || mt.glyph === "water") continue;
+    const h = halvesFor(p[3]); if (!h) continue;
+    const [sx, sy] = worldToScreen(x, y);
+    const full = h >> 1, n = full + (h & 1), cx0 = sx + sz / 2 - (n - 1) * step / 2, cy = sy + sz - r * 1.5;
+    for (let k = 0; k < n; k++) {
+      const cx = cx0 + k * step, half = k === full;
+      ctx.beginPath(); starPath(ctx, cx, cy, r);
+      ctx.fillStyle = half ? "rgba(30,20,5,.55)" : "#ffd24a"; ctx.fill();
+      if (half) { ctx.save(); ctx.beginPath(); ctx.rect(cx - r, cy - r, r, r * 2); ctx.clip(); ctx.beginPath(); starPath(ctx, cx, cy, r); ctx.fillStyle = "#ffd24a"; ctx.fill(); ctx.restore(); }
+      ctx.strokeStyle = "rgba(30,20,5,.9)"; ctx.beginPath(); starPath(ctx, cx, cy, r); ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
 function drawRoads(viewW, viewH, sz, dim) {
   if (!showRoads || sz < 4 || selectedOwnerKey !== null) return;
   const { set, pts } = getRoadSet(); if (!pts.length) return;
@@ -1952,6 +1979,7 @@ function render() {
   drawNatureIcons(viewW, viewH, sz, dim);
   drawBuildings(viewW, viewH, sz, dim);
   drawQualityStars(viewW, viewH, sz, dim);
+  drawLandStars(viewW, viewH, sz, dim);
 
   mapTools.drawSettlements(viewW, viewH, sz, dim);
   ctx.globalAlpha = 1;
