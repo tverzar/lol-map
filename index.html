@@ -388,6 +388,7 @@
       <label><span data-mt="resource">Ресурс</span><select id="listType"></select></label>
       <div class="filter-pair"><label><span data-mt="quality">Качество от, %</span><input id="listQuality" type="number" min="0" max="100" value="0"></label></div>
       <label class="check"><input id="listFree" type="checkbox" checked><span data-mt="freeOnly">Свободные по данным скана</span></label>
+      <label class="check"><input id="listFresh" type="checkbox"><span data-mt="freshOnly">Только новые находки перескана</span></label>
       <p id="listCount" class="muted" aria-live="polite"></p>
       <div id="listResults"></div>
     </section>
@@ -1605,6 +1606,13 @@ function cellObjectName(x, y) {
   const n = OBJ_NAMES[t]; return n ? n[currentLang === "ru" ? 0 : 1] : t;
 }
 window.cellObjectName = cellObjectName;
+window.getPlantData = () => PLANTS[ALL_DATA.continents[currentContinentIdx].key] || {};
+window.getFreshSet = () => {
+  const key = ALL_DATA.continents[currentContinentIdx].key;
+  if (!freshSetCache[key]) { const a = FRESH[key] || [], st = new Set(); for (let i = 0; i < a.length; i += 2) st.add(a[i] + "," + a[i + 1]); freshSetCache[key] = st; }
+  return freshSetCache[key];
+};
+window.objTypeName = (code) => { const n = OBJ_NAMES["tree:" + code] || OBJ_NAMES[code]; return n ? n[currentLang === "ru" ? 0 : 1] : code; };
 function getRoadSet() {
   const key = ALL_DATA.continents[currentContinentIdx].key;
   if (roadCache[key]) return roadCache[key];
@@ -1837,6 +1845,9 @@ function drawBuildings(viewW, viewH, size, dim) {
 // Значки гор (по типу местности из data.json.gz) и деревьев (trees.json:
 // {ключ_континента: {порода: [x0, y0, x1, y1, ...]}}). Только при крупном масштабе.
 let TREES = {};
+let PLANTS = {}, FRESH = {}, freshSetCache = {};
+fetch("plants.json").then(r => r.ok ? r.json() : {}).then(j => { PLANTS = j; if (window.refreshListOptions) window.refreshListOptions(); }).catch(() => {});
+fetch("fresh.json").then(r => r.ok ? r.json() : {}).then(j => { FRESH = j; freshSetCache = {}; if (window.refreshListOptions) window.refreshListOptions(); }).catch(() => {});
 fetch("trees.json").then(r => r.ok ? r.json() : {}).then(j => { TREES = j; objCache = {}; render(); }).catch(() => {});
 const MOUNTAIN_STYLE = {
   limeston:["#cbc4af","#8d866f"], basalt:["#575762","#2a2a32"], sandston:["#d3a465","#8f6a38"],
@@ -2376,6 +2387,7 @@ const mapTools = (() => {
   const tr = (ru,en) => currentLang === 'ru' ? ru : en;
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const words = {
+    freshOnly:['Только новые находки перескана','Only new finds of the rescan'], copyGame:['Ссылка на игру','Game link'],
     close:['Закрыть','Close'], resources:['Ресурсы','Resources'], owners:['Владения','Domains'], plan:['План','Plan'], list:['Список','List'],
     terrain:['Местность','Terrain'], mode_terrain:['Местность','Terrain'], mode_owners:['По владельцам','By owner'], mode_resources:['Минералы','Minerals'], findOwner:['Поселение или лорд','Settlement or lord'], visibleOnly:['В видимой области','In visible area'], favoritesOnly:['Только избранное','Favorites only'],
     sort:['Сортировка','Sort'], bySize:['По площади','By area'], byName:['По названию','By name'], byDistance:['По расстоянию','By distance'], byQuality:['По качеству','By quality'],
@@ -2505,7 +2517,7 @@ const mapTools = (() => {
     const wall=wallByCoord.get(picked.x+','+picked.y); if(wall) fields.push([tr('Укрепление','Fortification'),MAP_DATA.wallTypes[wall]||wall]);
     fields.push([tr('Снимок','Snapshot'),MAP_DATA.generatedAt]);
     if(date) fields.push([tr('Проверка клетки','Cell checked'),String(date)]);
-    $('objectCard').innerHTML=`<button class="close-card" id="closeCard" aria-label="${label('close')}">×</button><h3>${esc(r?.name || (mt?typeFullName(mt):label('noData')))}</h3><dl>${fields.map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>${!date?`<p class="muted">${tr('Дата проверки отдельной клетки в снимке не указана.','This snapshot has no individual cell check time.')}</p>`:''}<div class="button-row"><a target="_blank" rel="noopener" href="https://www.landsoflords.com/map/${formatCoords(picked.x,picked.y)}">${label('openGame')}</a><button id="copyCoords">${label('copyCoords')}</button><button id="shareObject">${label('share')}</button><button id="savePlace">${label('savePlace')}</button><button id="useReference">${label('reference')}</button></div>`;
+    $('objectCard').innerHTML=`<button class="close-card" id="closeCard" aria-label="${label('close')}">×</button><h3>${esc(r?.name || (mt?typeFullName(mt):label('noData')))}</h3><dl>${fields.map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>${!date?`<p class="muted">${tr('Дата проверки отдельной клетки в снимке не указана.','This snapshot has no individual cell check time.')}</p>`:''}<div class="button-row"><a target="_blank" rel="noopener" href="https://www.landsoflords.com/map/${formatCoords(picked.x,picked.y)}">${label('openGame')}</a><button id="copyCoords">${label('copyCoords')}</button><button id="copyGameLink">${label('copyGame')}</button><button id="shareObject">${label('share')}</button><button id="savePlace">${label('savePlace')}</button><button id="useReference">${label('reference')}</button></div>`;
     $('objectCard').hidden=false;
     const herald=owner&&MAP_DATA.ownerHeralds?.[owner];
     if(herald&&/^https:\/\//.test(herald)){
@@ -2515,6 +2527,7 @@ const mapTools = (() => {
     if(landmark) $('objectCard').querySelector('h3').textContent=tr(landmark.nameRu,landmark.nameEn);
     $('closeCard').onclick=()=>{picked=null;selectedOwnerKey=null;$('objectCard').hidden=true;render();};
     $('copyCoords').onclick=()=>copyText(formatCoords(picked.x,picked.y));
+    $('copyGameLink').onclick=()=>{copyText(gameUrl(picked.x,picked.y));notice(tr('Ссылка на игру скопирована','Game link copied'));};
     $('shareObject').onclick=()=>share();
     $('savePlace').onclick=()=>{
       const name=prompt(tr('Название места','Place name'),r?.name||formatCoords(picked.x,picked.y));
@@ -2547,14 +2560,33 @@ const mapTools = (() => {
     resultSet=new Set(results.map(r=>pointKey(r.p))); resourceLimit=80;state.resourceFilterActive=true;selected=null;selectedOwnerKey=null;picked=null;$('objectCard').hidden=true;
     setMode('resources');renderResourceResults();updateLegendActive();
   }
+  const gameUrl=(x,y)=>'https://www.landsoflords.com/map/'+String(Math.abs(x)).padStart(5,'0')+(x>=0?'E':'W')+String(Math.abs(y)).padStart(5,'0')+(y<=0?'N':'S');
+  function buildListOptions() {
+    const cur=$('listType').value, opt=(v,n)=>`<option value="${esc(v)}">${esc(n)}</option>`;
+    const plants=window.getPlantData?window.getPlantData():{};
+    const names=Object.keys(plants).map(c=>[c,window.objTypeName(c)]).sort((a,b)=>a[1].localeCompare(b[1]));
+    $('listType').innerHTML=opt('',label('allResources'))
+      +`<optgroup label="${tr('Минералы','Minerals')}">`+MAP_DATA.types.filter(t=>t.mineral).map(t=>opt('m:'+t.code,typeName(t))).join('')+'</optgroup>'
+      +(names.length?`<optgroup label="${tr('Растения','Plants')}">`+names.map(([c,n])=>opt('p:'+c,n)).join('')+'</optgroup>':'')
+      +`<optgroup label="${tr('Земля','Land')}">`+MAP_DATA.types.filter(t=>!t.mineral&&t.glyph!=='water').map(t=>opt('g:'+t.code,typeName(t))).join('')+'</optgroup>';
+    $('listType').value=[...$('listType').options].some(o=>o.value===cur)?cur:'';
+  }
+  window.refreshListOptions=()=>{buildListOptions();if(state.panel==='list')renderList();};
   let listRows=[], listLimit=100;
   function renderList() {
-    const code=$('listType').value, minQ=Number($('listQuality').value)||0, free=$('listFree').checked;
-    const rows=[];
-    MAP_DATA.types.forEach((t,i)=>{
-      if(!t.mineral||(code&&t.code!==code)) return;
-      for(const p of pointsByType[i]) { if(p[3]<minQ||(free&&p[4]!==0)) continue; rows.push(p); }
-    });
+    const val=$('listType').value, minQ=Number($('listQuality').value)||0, free=$('listFree').checked;
+    const fs=$('listFresh').checked&&window.getFreshSet?window.getFreshSet():null;
+    const rows=[], keep=p=>!(p[3]<minQ||(free&&p[4]!==0)||(fs&&!fs.has(p[0]+','+p[1])));
+    if(val.startsWith('p:')) {
+      const code=val.slice(2), a=(window.getPlantData()[code])||[], nm=window.objTypeName(code);
+      for(let i=0;i<a.length;i+=4){ const p=[a[i],a[i+1],-1,a[i+2],a[i+3],nm]; if(keep(p)) rows.push(p); }
+    } else {
+      const code=val?val.slice(2):'';
+      MAP_DATA.types.forEach((t,i)=>{
+        if(val?t.code!==code:!t.mineral) return;
+        for(const p of pointsByType[i]) if(keep(p)) rows.push(p);
+      });
+    }
     rows.sort((a,b)=>b[3]-a[3]||a[2]-b[2]||a[0]-b[0]||a[1]-b[1]);
     listRows=rows;
     $('listCount').textContent=tr('Найдено клеток: ','Cells found: ')+fmtNum(rows.length);
@@ -2562,7 +2594,7 @@ const mapTools = (() => {
   }
   function drawList() {
     const stars=q=>{const h=q>=99?10:q<10?0:Math.floor(q/10);return '★'.repeat(h>>1)+(h&1?'<span style="background:linear-gradient(90deg,#f0bd63 50%,rgba(240,189,99,.28) 50%);-webkit-background-clip:text;background-clip:text;color:transparent">★</span>':'');};
-    $('listResults').innerHTML=listRows.slice(0,listLimit).map(p=>`<button class="result-main" data-resource-cell="${p[0]},${p[1]}" style="width:100%;margin-bottom:4px">${esc(typeName(MAP_DATA.types[p[2]]))} · ${p[3]}% <span style="color:#f0bd63">${stars(p[3])}</span><small>${formatCoords(p[0],p[1])} · ${p[4]===0?tr('свободно','free'):tr('занято','claimed')}</small></button>`).join('')+(listRows.length>listLimit?`<button id="moreList" style="width:100%">${label('more')}</button>`:'');
+    $('listResults').innerHTML=listRows.slice(0,listLimit).map(p=>`<div style="display:flex;gap:4px;margin-bottom:4px"><button class="result-main" data-resource-cell="${p[0]},${p[1]}" style="flex:1;min-width:0">${esc(p[5]||typeName(MAP_DATA.types[p[2]]))} · ${p[3]}% <span style="color:#f0bd63">${stars(p[3])}</span><small>${formatCoords(p[0],p[1])} · ${p[4]===0?tr('свободно','free'):tr('занято','claimed')}</small></button><button data-copy-game="${p[0]},${p[1]}" title="${tr('Копировать ссылку на игру','Copy game link')}" aria-label="${tr('Копировать ссылку на игру','Copy game link')}" style="flex:none;width:38px">🔗</button></div>`).join('')+(listRows.length>listLimit?`<button id="moreList" style="width:100%">${label('more')}</button>`:'');
     if($('moreList')) $('moreList').onclick=()=>{listLimit+=100;drawList();};
   }
   function renderResourceResults() {
@@ -2861,7 +2893,7 @@ const mapTools = (() => {
     document.querySelectorAll('[data-mt]').forEach(el=>el.textContent=label(el.dataset.mt));
     $('miniMap').setAttribute('aria-label',tr('Обзор континента: нажмите для перехода','Continent overview: click to navigate'));
     $('resourceType').options[0].textContent=label('allResources');for(const option of [...$('resourceType').options].slice(1)){const t=MAP_DATA.types.find(t=>t.code===option.value);if(t)option.textContent=typeName(t);}
-    $('listType').options[0].textContent=label('allResources');for(const option of [...$('listType').options].slice(1)){const t=MAP_DATA.types.find(t=>t.code===option.value);if(t)option.textContent=typeName(t);}
+    buildListOptions();
     if(state.panel==='list') renderList();
     renderOwners();renderResourceResults();showCard();const pending=draft;setTool(state.tool);draft=pending;render();
   }
@@ -2879,7 +2911,7 @@ const mapTools = (() => {
       return {...m,lord:lords[m.name]||'',bounds:b};
     });
     $('resourceType').innerHTML=`<option value="">${label('allResources')}</option>`+MAP_DATA.types.filter(t=>t.mineral).map(t=>`<option value="${esc(t.code)}">${esc(typeName(t))}</option>`).join('');
-    $('listType').innerHTML=$('resourceType').innerHTML;$('listQuality').value='0';$('listFree').checked=true;listLimit=100;
+    $('listType').value='';buildListOptions();$('listQuality').value='0';$('listFree').checked=true;$('listFresh').checked=false;listLimit=100;
     $('resourceOrigin').value=formatCoords(...reference);$('objectCard').hidden=true;$('resourceResults').hidden=true;
     $('ownerSearch').value='';ownerLimit=80;$('resourceQuality').value='0';$('resourceRadius').value='';$('resourceFree').checked=true;$('resourceSort').value='distance';
     state.ready=true;if(!plans.length)newPlan();else{loadOverlay();updatePlanUI();}
@@ -2907,7 +2939,8 @@ const mapTools = (() => {
   $('applyResourceFilter').onclick=filterResources;$('resetResourceFilter').onclick=clearFilter;
   $('useMapCenter').onclick=()=>{$('resourceOrigin').value=formatCoords(...snap(center()));};
   $('listResults').onclick=e=>{const b=e.target.closest('[data-resource-cell]');if(b)pickCell(...b.dataset.resourceCell.split(',').map(Number),true);};
-  for(const id of ['listType','listQuality','listFree']) $(id).addEventListener(id==='listQuality'?'input':'change',()=>{listLimit=100;renderList();});
+  $('listResults').addEventListener('click',e=>{const b=e.target.closest('[data-copy-game]'); if(!b) return; const [x,y]=b.dataset.copyGame.split(',').map(Number); copyText(gameUrl(x,y)); notice(tr('Ссылка на игру скопирована','Game link copied'));});
+  for(const id of ['listType','listQuality','listFree','listFresh']) $(id).addEventListener(id==='listQuality'?'input':'change',()=>{listLimit=100;renderList();});
   $('resourceResults').onclick=e=>{const b=e.target.closest('[data-resource-cell]');if(b)pickCell(...b.dataset.resourceCell.split(',').map(Number),true);};
   // «Сбросить» возвращает карту в исходное состояние целиком: режим «Местность», слои по умолчанию, без фильтра и выбора.
   $('resetBtn').addEventListener('click',()=>{
