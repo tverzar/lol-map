@@ -520,7 +520,7 @@ const I18N = {
     minAgo: (n) => `${n} мин назад`, hAgo: (n) => `${n} ч назад`,
     views: (n) => `${n} просмотров`,
     activeNow: (n) => `${n} сейчас на карте`,
-    statPoints: "Точек", statQueued: "В очереди", statFailed: "Не удалось", statSettlements: "Поселений",
+    statPoints: "Точек", statQueued: "Свободно", statFailed: "Не удалось", statSettlements: "Поселений",
     statScanTime: "Континент пройден за",
     depositsGroup: "Ценные месторождения", terrainGroup: "Типы местности",
     failedToCheck: "Не удалось проверить",
@@ -545,7 +545,7 @@ const I18N = {
     minAgo: (n) => `${n} min ago`, hAgo: (n) => `${n} h ago`,
     views: (n) => `${n} views`,
     activeNow: (n) => `${n} viewing now`,
-    statPoints: "Points", statQueued: "Queued", statFailed: "Failed", statSettlements: "Settlements",
+    statPoints: "Points", statQueued: "Free", statFailed: "Failed", statSettlements: "Settlements",
     statScanTime: "Continent scanned in",
     depositsGroup: "Valuable deposits", terrainGroup: "Terrain types",
     failedToCheck: "Failed to check",
@@ -912,10 +912,19 @@ function loadMapData(mapData) {
   cachedFreeDeposits = null;
 }
 
+let freeLandCache = -1;
+// Свободные клетки суши (без воды) по данным скана.
+function freeLandCount() {
+  if (freeLandCache < 0) {
+    freeLandCache = 0;
+    for (const p of MAP_DATA.points) { if (p[4] === 0 && MAP_DATA.types[p[2]].glyph !== "water") freeLandCache++; }
+  }
+  return freeLandCache;
+}
 function renderStatsBlock() {
   statsEl.innerHTML = `
     <div class="stat"><span class="n">${fmtNum(MAP_DATA.points.length)}</span><span class="l">${t("statPoints")}</span></div>
-    <div class="stat"><span class="n">${fmtNum(MAP_DATA.frontierCount)}</span><span class="l">${t("statQueued")}</span></div>
+    <div class="stat"><span class="n">${fmtNum(freeLandCount())}</span><span class="l">${t("statQueued")}</span></div>
     <div class="stat"><span class="n">${fmtNum(MAP_DATA.failed.length)}</span><span class="l">${t("statFailed")}</span></div>
     <div class="stat"><span class="n">${fmtNum(ownerCount)}</span><span class="l">${t("statSettlements")}</span></div>
   `;
@@ -1117,7 +1126,6 @@ function renderLegendList() {
     if (e.key === "Enter" || e.key === " ") { e.preventDefault(); failedMain.click(); }
   });
   failedRow.classList.add("scan-failure-row");
-  legendEl.appendChild(failedRow);
   failedRowRef = failedRow;
 
   MAP_DATA.types.forEach((mt, i) => {
@@ -2218,7 +2226,7 @@ continentSwitchEl.addEventListener("change", () => {
 });
 
 function switchContinent(idx) {
-  currentContinentIdx = idx;
+  currentContinentIdx = idx; freeLandCache = -1;
   localStorage.setItem("lolsite.continent", ALL_DATA.continents[idx].key);
   const c = ALL_DATA.continents[idx];
   document.getElementById("continentNameLabel").textContent = c.name;
@@ -2369,7 +2377,7 @@ const mapTools = (() => {
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const words = {
     close:['Закрыть','Close'], resources:['Ресурсы','Resources'], owners:['Владения','Domains'], plan:['План','Plan'], list:['Список','List'],
-    terrain:['Местность','Terrain'], findOwner:['Поселение или лорд','Settlement or lord'], visibleOnly:['В видимой области','In visible area'], favoritesOnly:['Только избранное','Favorites only'],
+    terrain:['Местность','Terrain'], mode_terrain:['Местность','Terrain'], mode_owners:['По владельцам','By owner'], mode_resources:['Минералы','Minerals'], findOwner:['Поселение или лорд','Settlement or lord'], visibleOnly:['В видимой области','In visible area'], favoritesOnly:['Только избранное','Favorites only'],
     sort:['Сортировка','Sort'], bySize:['По площади','By area'], byName:['По названию','By name'], byDistance:['По расстоянию','By distance'], byQuality:['По качеству','By quality'],
     more:['Показать ещё','Show more'], savedPlaces:['Сохранённые места','Saved places'], variant:['Вариант плана','Plan variant'],
     new:['Новый','New'], duplicate:['Копия','Duplicate'], delete:['Удалить','Delete'], name:['Название','Name'], showPlan:['Показывать план','Show plan'],
@@ -2879,14 +2887,13 @@ const mapTools = (() => {
   }
   // Static controls are inserted once so language changes preserve form values and focus.
   canvas.parentElement.insertAdjacentHTML('beforeend','<div id="heraldLayer" aria-hidden="true"></div>');
-  canvas.parentElement.insertAdjacentHTML('beforeend',`<div class="map-controls"><button id="openSidebar" class="mobile-only" aria-expanded="false">${span('search')}</button><div class="mode-group">${['terrain','owners','resources'].map(m=>`<button data-mode="${m}" class="${m==='terrain'?'active':''}">${span(m)}</button>`).join('')}</div><span class="spacer"></span><button id="resetAll">${span('resetAll')}</button><button id="shareMap">${span('share')}</button><button id="openPlan">${span('plan')}</button></div><aside id="objectCard" class="object-card" hidden aria-live="polite"></aside><canvas id="miniMap" width="308" height="224" tabindex="0"></canvas><div id="mapScale"><span id="scaleText"></span><span id="scaleBar"></span></div><div id="unknownKey">${span('noData')}</div><div id="mapNotice" role="status" hidden></div>`);
+  canvas.parentElement.insertAdjacentHTML('beforeend',`<div class="map-controls"><button id="openSidebar" class="mobile-only" aria-expanded="false">${span('search')}</button><div class="mode-group">${['terrain','owners','resources'].map(m=>`<button data-mode="${m}" class="${m==='terrain'?'active':''}">${span('mode_'+m)}</button>`).join('')}</div><span class="spacer"></span><button id="shareMap">${span('share')}</button></div><aside id="objectCard" class="object-card" hidden aria-live="polite"></aside><canvas id="miniMap" width="308" height="224" tabindex="0"></canvas><div id="mapScale"><span id="scaleText"></span><span id="scaleBar"></span></div><div id="unknownKey">${span('noData')}</div><div id="mapNotice" role="status" hidden></div>`);
   canvas.parentElement.insertAdjacentHTML('beforeend',`<div id="drawingActions" hidden><strong id="drawingToolName"></strong><button id="finishDrawing">${span('finish')}</button><button id="cancelDrawing">${span('pan')}</button></div>`);
   $('resourcePanel').insertAdjacentHTML('afterbegin',`<details class="resource-filters" id="resourceFilterDetails"><summary>${span('filters')}</summary><label>${span('resource')}<select id="resourceType"></select></label><div class="filter-pair"><label>${span('quality')}<input id="resourceQuality" type="number" min="0" max="100" value="0"></label><label>${span('sort')}<select id="resourceSort"><option value="distance" data-mt="byDistance">По расстоянию</option><option value="quality" data-mt="byQuality">По качеству</option></select></label></div><label class="check"><input id="resourceFree" type="checkbox" checked>${span('freeOnly')}</label><label>${span('origin')}<input id="resourceOrigin"></label><button id="useMapCenter">${span('useCenter')}</button><label>${span('radius')}<input id="resourceRadius" type="number" min="0" step="1"></label><div class="button-row"><button id="applyResourceFilter">${span('apply')}</button><button id="resetResourceFilter">${span('reset')}</button></div></details><div id="resourceResults" hidden></div>`);
   document.querySelectorAll('[data-panel]').forEach(b=>b.onclick=()=>setPanel(b.dataset.panel));
   document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
   document.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>{setTool(b.dataset.tool);if(b.dataset.tool!=='pan')closeSidebar();});
   $('openSidebar').onclick=()=>{document.querySelector('#mapView .sidebar').classList.add('open');$('openSidebar').setAttribute('aria-expanded','true');};$('closeSidebar').onclick=closeSidebar;
-  $('openPlan').onclick=()=>{setPanel('plan');document.querySelector('#mapView .sidebar').classList.add('open');};
   $('shareMap').onclick=share;
   for(const id of ['ownerSearch','ownersVisible','ownersFavorites','ownerSort'])$(id).addEventListener('input',()=>{ownerLimit=80;renderOwners();});
   $('moreOwners').onclick=()=>{ownerLimit+=80;renderOwners();};
@@ -2918,7 +2925,7 @@ const mapTools = (() => {
     if(selected!==null&&state.mode==='resources'&&!MAP_DATA.types[selected]?.mineral)setMode('terrain');
     updateLegendActive();
   });
-  $('resetAll').onclick=()=>{$('resetBtn').click();fitToView();render();};
+  $('resetBtn').addEventListener('click',()=>{fitToView();render();});
   $('layersCard').addEventListener('change',()=>{syncLink();});
   $('miniMap').onclick=e=>{const c=$('miniMap'),r=c.getBoundingClientRect(),ratio=Math.min(c.width/baseCanvas.width,c.height/baseCanvas.height),x=(e.clientX-r.left)*c.width/r.width,y=(e.clientY-r.top)*c.height/r.height; jumpCenter(minX+(x-(c.width-baseCanvas.width*ratio)/2)/ratio,minY+(y-(c.height-baseCanvas.height*ratio)/2)/ratio);};
   $('newPlan').onclick=()=>newPlan();$('copyPlan').onclick=()=>newPlan(true);
