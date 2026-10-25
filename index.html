@@ -260,7 +260,12 @@
 .map-herald.selected .frame { background:linear-gradient(155deg, #fff1ba 0%, #e8b968 32%, #8a5c22 62%, #fff1ba 100%); }
 .card-herald { width:64px; height:70px; float:left; margin:0 12px 8px 0; filter:drop-shadow(0 2px 3px rgba(0,0,0,.5)); }
 [hidden] { display:none !important; }
-#loadingMap { position:fixed; inset:0; display:grid; place-content:center; background:#10151c; color:#e9e3d2; z-index:100; font:18px system-ui; }
+#loadingMap { position:fixed; inset:0; z-index:10000; display:grid; place-content:center; gap:14px; padding:24px; background:#10151c; color:#e9e3d2; text-align:center; font:15px system-ui; }
+#loadingMap[hidden] { display:none; }
+#loadingMap .loading-track { width:min(320px,72vw); height:7px; overflow:hidden; border-radius:8px; background:#2c3846; }
+#loadingMap .loading-fill { width:0; height:100%; border-radius:inherit; background:#c98a3e; transition:width 180ms ease-out; }
+#loadingMap[data-indeterminate=true] .loading-fill { width:35%; animation:loading-sweep 1.15s ease-in-out infinite alternate; }
+@keyframes loading-sweep { from { transform:translateX(0); } to { transform:translateX(185%); } }
 #mapView .mapwrap { min-width:0; overflow:hidden; }
 #mapView #map { display:block; width:100%; height:100%; touch-action:none; }
 #mapView .sidebar { width:320px; min-height:0; }
@@ -366,7 +371,7 @@
   </div>
 </div>
 
-<div id="loadingMap" role="status">Загрузка карты / Loading map…</div><div class="app" id="mapView">
+<div id="loadingMap" role="progressbar" aria-label="Загрузка карты / Loading map" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span class="loading-label">Загрузка карты / Downloading map data</span><div class="loading-track"><div class="loading-fill"></div></div></div><div class="app" id="mapView">
   <aside class="sidebar">
     <div class="sidebar-head">
       <h1><span data-i18n="mapTitle">Разведка континента</span> <span id="continentNameLabel"></span></h1>
@@ -574,7 +579,16 @@ function agoPhrase(mins) {
 // обновления данных (см. build_site.py:main()). Распаковка асинхронная,
 // поэтому весь остальной код обёрнут в один async IIFE.
 async function loadAllData() {
-  const buf = await (await fetch("data.json.gz")).arrayBuffer();
+  const response = await fetch("data.json.gz");
+  if (!response.ok) throw new Error(`Map request failed: ${response.status}`);
+  const total = Number(response.headers.get("Content-Length")) || 0;
+  let buf;
+  if (response.body && response.body.getReader && total) {
+    const reader = response.body.getReader(), chunks = []; let received = 0;
+    while (true) { const {done, value} = await reader.read(); if (done) break; chunks.push(value); received += value.byteLength; setLoadingProgress(Math.min(68, Math.round(received / total * 68)), "Загрузка данных карты / Downloading map data"); }
+    buf = new Uint8Array(received); let offset = 0; for (const chunk of chunks) { buf.set(chunk, offset); offset += chunk.byteLength; }
+  } else buf = new Uint8Array(await response.arrayBuffer());
+  setLoadingProgress(70, "Подготовка данных / Preparing map data", true);
   try {
     const stream = new Blob([buf]).stream().pipeThrough(new DecompressionStream("gzip"));
     return JSON.parse(await new Response(stream).text());
@@ -585,6 +599,10 @@ async function loadAllData() {
     // UTF-8 JSON-текст.
     return JSON.parse(new TextDecoder().decode(buf));
   }
+}
+
+function setLoadingProgress(percent, label, indeterminate=false) {
+  const root=document.getElementById("loadingMap"); if(!root) return; root.dataset.indeterminate=String(indeterminate); root.setAttribute("aria-valuenow",String(percent)); root.setAttribute("aria-valuetext",label); const text=root.querySelector(".loading-label"), fill=root.querySelector(".loading-fill"); if(text) text.textContent=label; if(fill&&!indeterminate) fill.style.width=`${percent}%`;
 }
 
 (async () => {
@@ -813,6 +831,7 @@ function candidatesNear(wx, wy, cellRadius) {
 // террейна в offscreen-канвас (та же идея, что в build_map_artifact.py —
 // один drawImage за кадр вместо перерисовки каждой точки).
 function loadMapData(mapData) {
+  setLoadingProgress(75, "Построение индексов карты / Building map indexes", true);
   MAP_DATA = mapData;
 
   // Not Math.min(...xs) — spreading 100k+ array elements as call arguments
@@ -883,28 +902,21 @@ function loadMapData(mapData) {
   }
   bctx.globalAlpha = 1;
 
+  // Bake low-zoom outlines with the existing coordinate index, avoiding a
+  // second coordinate Set for every owner.
   boundaryCanvas = document.createElement("canvas");
   boundaryCanvas.width = baseCanvas.width; boundaryCanvas.height = baseCanvas.height;
   const boundaryCtx = boundaryCanvas.getContext("2d");
   boundaryCtx.scale(1 / PT, 1 / PT);
-
-  // Обводка по границе каждого владения — полупрозрачная заливка сама по
-  // себе плохо читается на пёстрой карте местности, особенно у мелких
-  // клочков земли; тонкая полоса сплошного цвета вдоль края (там, где
-  // сосед НЕ принадлежит тому же владельцу) делает территорию видимой с
-  // одного взгляда. Запекается сюда же, один раз при загрузке — не кадр за
-  // кадром — так что цена лишь в build-время, не в рендере.
-  const OUTLINE_PX = Math.max(1, PT * 0.4);
+  const outlinePx = Math.max(1, PT * 0.4);
   for (const [ownerIdx, arr] of ownedByOwner) {
-    const ownerSet = new Set(arr.map(p => `${p[0]},${p[1]}`));
     boundaryCtx.fillStyle = ownerColor(ownerIdx);
     for (const p of arr) {
-      const wx = p[0], wy = p[1];
-      const sx = (wx - minX) * PT, sy = (wy - minY) * PT;
-      if (!ownerSet.has(`${wx - 1},${wy}`)) boundaryCtx.fillRect(sx, sy, OUTLINE_PX, PT);
-      if (!ownerSet.has(`${wx + 1},${wy}`)) boundaryCtx.fillRect(sx + PT - OUTLINE_PX, sy, OUTLINE_PX, PT);
-      if (!ownerSet.has(`${wx},${wy - 1}`)) boundaryCtx.fillRect(sx, sy, PT, OUTLINE_PX);
-      if (!ownerSet.has(`${wx},${wy + 1}`)) boundaryCtx.fillRect(sx, sy + PT - OUTLINE_PX, PT, OUTLINE_PX);
+      const [x,y] = p, sx=(x-minX)*PT, sy=(y-minY)*PT;
+      if (pointByCoord.get((x-1)+","+y)?.[5] !== ownerIdx) boundaryCtx.fillRect(sx,sy,outlinePx,PT);
+      if (pointByCoord.get((x+1)+","+y)?.[5] !== ownerIdx) boundaryCtx.fillRect(sx+PT-outlinePx,sy,outlinePx,PT);
+      if (pointByCoord.get(x+","+(y-1))?.[5] !== ownerIdx) boundaryCtx.fillRect(sx,sy,PT,outlinePx);
+      if (pointByCoord.get(x+","+(y+1))?.[5] !== ownerIdx) boundaryCtx.fillRect(sx,sy+PT-outlinePx,PT,outlinePx);
     }
   }
 
@@ -1959,9 +1971,7 @@ function render() {
   ctx.drawImage(baseCanvas, imgX, imgY, baseCanvas.width * PT * scale, baseCanvas.height * PT * scale);
   ctx.restore();
   if (mapTools.mode === "owners") ctx.drawImage(ownershipCanvas, imgX, imgY, ownershipCanvas.width * PT * scale, ownershipCanvas.height * PT * scale);
-  if (showBoundaries && sz < (mapTools.mode === "terrain" ? 2 : 8)) {
-    ctx.drawImage(boundaryCanvas, imgX, imgY, boundaryCanvas.width * PT * scale, boundaryCanvas.height * PT * scale);
-  }
+  if (showBoundaries && sz < (mapTools.mode === "terrain" ? 2 : 8)) ctx.drawImage(boundaryCanvas, imgX, imgY, boundaryCanvas.width * PT * scale, boundaryCanvas.height * PT * scale);
 
   if (showGrid && sz >= 4 && mapTools.mode === "terrain") {
     const [gx, gy] = worldToScreen(Math.floor(minX), Math.floor(minY));
@@ -2516,6 +2526,9 @@ const mapTools = (() => {
     if(r) fields.push([tr('Площадь','Area'),fmtNum(r.count)+' '+tr('клеток','cells')]);
     else if(p) fields.push([tr('Качество','Quality'),p[3]+'%'],[tr('Статус','Status'),p[4]===0?tr('Свободно по скану','Free in scan'):tr('Занято по скану','Occupied in scan')]);
     const objName=(!r&&window.cellObjectName)?window.cellObjectName(picked.x,picked.y):''; if(objName) fields.push([tr('Объект','Object'),objName]);
+    const plantData=(!r&&objName&&objName.startsWith('tree:')&&window.getPlantData)?window.getPlantData():null;
+    const plantCoords=plantData?.[objName.slice(5)];
+    if(plantCoords) for(let i=0;i<plantCoords.length;i+=4) { if(plantCoords[i]===picked.x&&plantCoords[i+1]===picked.y) { fields.push([tr('Качество дерева','Tree quality'),plantCoords[i+2]+'%']); break; } }
     if(owner) fields.push([tr('Владение','Domain'),owner]);
     if(lord) fields.push([tr('Лорд','Lord'),lord]);
     const wall=wallByCoord.get(picked.x+','+picked.y); if(wall) fields.push([tr('Укрепление','Fortification'),MAP_DATA.wallTypes[wall]||wall]);
@@ -3180,7 +3193,7 @@ resizeCanvas();
 fitToView();
 applyLang(currentLang);
 mapTools.restoreLink();
-document.getElementById("loadingMap").remove();
+document.getElementById("loadingMap").hidden = true;
 })().catch(error => {
   const status = document.getElementById("loadingMap");
   if (status) status.textContent = "Не удалось загрузить карту. Обновите страницу. / Map could not load. Please reload.";
