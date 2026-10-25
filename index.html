@@ -19,6 +19,25 @@
   body { display: flex; flex-direction: column; }
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
+  #loadingMap {
+    position: fixed; inset: 0; z-index: 10000; display: grid; place-content: center;
+    gap: 14px; padding: 24px; background: var(--bg); color: var(--ink);
+    text-align: center; font-size: 0.95rem;
+  }
+  #loadingMap[hidden] { display: none; }
+  #loadingMap .loading-track {
+    width: min(320px, 72vw); height: 7px; overflow: hidden;
+    border-radius: 8px; background: var(--panel-border);
+  }
+  #loadingMap .loading-fill {
+    width: 0; height: 100%; border-radius: inherit; background: var(--accent);
+    transition: width 180ms ease-out;
+  }
+  #loadingMap[data-indeterminate="true"] .loading-fill {
+    width: 35%; animation: loading-sweep 1.15s ease-in-out infinite alternate;
+  }
+  @keyframes loading-sweep { from { transform: translateX(0); } to { transform: translateX(185%); } }
+
   /* --- верхняя панель: континент + переключатель языка --- */
   .topbar {
     flex: none; display: flex; align-items: center; justify-content: space-between;
@@ -260,12 +279,7 @@
 .map-herald.selected .frame { background:linear-gradient(155deg, #fff1ba 0%, #e8b968 32%, #8a5c22 62%, #fff1ba 100%); }
 .card-herald { width:64px; height:70px; float:left; margin:0 12px 8px 0; filter:drop-shadow(0 2px 3px rgba(0,0,0,.5)); }
 [hidden] { display:none !important; }
-#loadingMap { position:fixed; inset:0; z-index:10000; display:grid; place-content:center; gap:14px; padding:24px; background:#10151c; color:#e9e3d2; text-align:center; font:15px system-ui; }
-#loadingMap[hidden] { display:none; }
-#loadingMap .loading-track { width:min(320px,72vw); height:7px; overflow:hidden; border-radius:8px; background:#2c3846; }
-#loadingMap .loading-fill { width:0; height:100%; border-radius:inherit; background:#c98a3e; transition:width 180ms ease-out; }
-#loadingMap[data-indeterminate=true] .loading-fill { width:35%; animation:loading-sweep 1.15s ease-in-out infinite alternate; }
-@keyframes loading-sweep { from { transform:translateX(0); } to { transform:translateX(185%); } }
+#loadingMap { position:fixed; inset:0; display:grid; place-content:center; background:#10151c; color:#e9e3d2; z-index:100; font:18px system-ui; }
 #mapView .mapwrap { min-width:0; overflow:hidden; }
 #mapView #map { display:block; width:100%; height:100%; touch-action:none; }
 #mapView .sidebar { width:320px; min-height:0; }
@@ -279,6 +293,24 @@
 #mapView .side-panel { min-height:0; flex:1; overflow:auto; padding:10px; }
 #mapView #resourcePanel { display:flex; flex-direction:column; padding:0; }
 #mapView #resourcePanel .legend-scroll { flex:1 0 auto; overflow:visible; }
+#mapView .monitor-panel { flex:0 0 auto; max-height:42%; display:flex; flex-direction:column; min-height:130px; padding:10px; border-bottom:1px solid var(--panel-border); gap:7px; }
+#mapView .monitor-head { display:flex; align-items:baseline; justify-content:space-between; gap:6px; font-size:12px; }
+#mapView .monitor-head strong { color:var(--accent); font-size:13px; }
+#mapView #monitorPeriod { color:var(--ink-dim); font-size:10px; text-align:right; }
+#mapView #monitorRelease { width:100%; padding:6px; background:var(--bg); border:1px solid var(--panel-border); color:var(--ink); border-radius:5px; }
+#mapView .monitor-summary { font-size:11px; color:var(--ink-dim); line-height:1.35; }
+#mapView .monitor-filters { display:flex; flex-wrap:wrap; gap:3px; }
+#mapView .monitor-filters button { padding:3px 6px; border:1px solid var(--panel-border); background:var(--bg); color:var(--ink-dim); border-radius:12px; font-size:11px; cursor:pointer; }
+#mapView .monitor-filters button.active { background:var(--accent); color:var(--accent-ink); }
+#mapView .monitor-feed { min-height:36px; overflow-y:auto; overscroll-behavior:contain; }
+#mapView .monitor-event { display:flex; gap:7px; width:100%; text-align:left; padding:6px 3px; border:0; border-bottom:1px solid var(--panel-border); background:transparent; color:var(--ink); cursor:pointer; }
+#mapView .monitor-event:hover { background:rgba(201,138,62,.12); }
+#mapView .monitor-event span:last-child { min-width:0; }
+#mapView .monitor-event b { display:block; font-size:11px; }
+#mapView .monitor-event small { display:block; color:var(--ink-dim); overflow-wrap:anywhere; font-size:10px; }
+#mapView .monitor-dot { flex:none; width:8px; height:8px; border-radius:50%; margin-top:4px; }
+#mapView #monitorMore { padding:5px; border:1px solid var(--panel-border); border-radius:5px; background:var(--bg); color:var(--ink); cursor:pointer; }
+#mapView #monitorOpen { display:none; }
 #mapView .sidebar-foot { padding:8px 10px; }
 #mapView button, #mapView select, #mapView input { font:inherit; }
 #mapView .side-panel, #mapView .side-tabs, #mapView .map-controls, #mapView .object-card { font:13px system-ui,sans-serif; }
@@ -334,6 +366,8 @@
 #mapView #drawingActions button { background:var(--bg); color:var(--ink); border:1px solid var(--panel-border); border-radius:5px; padding:8px; cursor:pointer; }
 .mobile-only { display:none; }
 @media(max-width:760px) {
+  #mapView .monitor-panel { max-height:48%; min-height:150px; }
+  #mapView #monitorOpen:not([hidden]) { display:block; position:absolute; right:8px; bottom:66px; z-index:4; padding:9px; border:1px solid var(--accent); border-radius:7px; background:var(--panel); color:var(--ink); }
   #mapView .sidebar { position:absolute; bottom:0; left:0; right:0; width:100%; height:66%; z-index:10; border-top:1px solid var(--accent); border-radius:14px 14px 0 0; transform:translateY(105%); transition:transform .18s; box-shadow:0 -10px 40px #0007; }
   #mapView .sidebar.open { transform:translateY(0); }
   #mapView .sidebar-head, #mapView .stats, #mapView .sidebar-foot { display:none; }
@@ -383,6 +417,14 @@
     </div>
     <div class="stats" id="statsBlock"></div>
         <button id="closeSidebar" class="mobile-only" data-mt="close">Закрыть</button>
+    <section id="monitorPanel" class="monitor-panel" aria-label="Изменения Орентии">
+      <div class="monitor-head"><strong id="monitorTitle">Изменения Орентии</strong><span id="monitorPeriod"></span></div>
+      <select id="monitorRelease" aria-label="Период изменений"></select>
+      <div id="monitorSummary" class="monitor-summary" aria-live="polite">Загрузка истории…</div>
+      <div id="monitorFilters" class="monitor-filters" role="group" aria-label="Тип изменений"></div>
+      <div id="monitorFeed" class="monitor-feed"></div>
+      <button id="monitorMore" type="button" hidden>Показать ещё</button>
+    </section>
     <nav class="side-tabs" aria-label="Map tools">
       <button data-panel="resource" class="active" data-mt="resources">Ресурсы</button>
       <button data-panel="owner" data-mt="owners">Владения</button>
@@ -574,20 +616,32 @@ function agoPhrase(mins) {
   return t("hAgo", Math.round(mins / 60));
 }
 
-// Данные лежат рядом отдельным gzip-файлом (data.json.gz), не инлайн —
-// так браузер кэширует неизменные части страницы отдельно от часового
-// обновления данных (см. build_site.py:main()). Распаковка асинхронная,
-// поэтому весь остальной код обёрнут в один async IIFE.
-async function loadAllData() {
-  const response = await fetch("data.json.gz");
-  if (!response.ok) throw new Error(`Map request failed: ${response.status}`);
+// Данные лежат рядом отдельными gzip-файлами: data.manifest.json — список
+// континентов, дата снимка и файл по умолчанию; data.<key>.json.gz — снимок
+// континента (см. build_site.py:write_site_data). Первый экран качает только
+// показанный континент: Орентия по умолчанию, Корентис — лишь когда его
+// выбрали в переключателе. Распаковка асинхронная, поэтому весь остальной код
+// обёрнут в один async IIFE.
+async function fetchGzipJson(url) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Map request failed: ${response.status} (${url})`);
   const total = Number(response.headers.get("Content-Length")) || 0;
   let buf;
   if (response.body && response.body.getReader && total) {
-    const reader = response.body.getReader(), chunks = []; let received = 0;
-    while (true) { const {done, value} = await reader.read(); if (done) break; chunks.push(value); received += value.byteLength; setLoadingProgress(Math.min(68, Math.round(received / total * 68)), "Загрузка данных карты / Downloading map data"); }
-    buf = new Uint8Array(received); let offset = 0; for (const chunk of chunks) { buf.set(chunk, offset); offset += chunk.byteLength; }
-  } else buf = new Uint8Array(await response.arrayBuffer());
+    const reader = response.body.getReader(), chunks = [];
+    let received = 0;
+    while (true) {
+      const {done, value} = await reader.read();
+      if (done) break;
+      chunks.push(value); received += value.byteLength;
+      setLoadingProgress(Math.min(68, Math.round(received / total * 68)), "Загрузка данных карты / Downloading map data");
+    }
+    buf = new Uint8Array(received);
+    let offset = 0;
+    for (const chunk of chunks) { buf.set(chunk, offset); offset += chunk.byteLength; }
+  } else {
+    buf = new Uint8Array(await response.arrayBuffer());
+  }
   setLoadingProgress(70, "Подготовка данных / Preparing map data", true);
   try {
     const stream = new Blob([buf]).stream().pipeThrough(new DecompressionStream("gzip"));
@@ -601,12 +655,75 @@ async function loadAllData() {
   }
 }
 
-function setLoadingProgress(percent, label, indeterminate=false) {
-  const root=document.getElementById("loadingMap"); if(!root) return; root.dataset.indeterminate=String(indeterminate); root.setAttribute("aria-valuenow",String(percent)); root.setAttribute("aria-valuetext",label); const text=root.querySelector(".loading-label"), fill=root.querySelector(".loading-fill"); if(text) text.textContent=label; if(fill&&!indeterminate) fill.style.width=`${percent}%`;
+async function loadManifest() {
+  const response = await fetch("data.manifest.json");
+  if (!response.ok) throw new Error(`Manifest request failed: ${response.status}`);
+  const manifest = await response.json();
+  if (!manifest || !Array.isArray(manifest.continents) || !manifest.continents.length) {
+    throw new Error("Manifest has no continents");
+  }
+  manifest.continents.forEach(entry => { entry.map = null; }); // map — лениво
+  return manifest;
 }
 
+function showLoadingOverlay(label) {
+  const root = document.getElementById("loadingMap");
+  if (!root) return;
+  root.hidden = false;
+  setLoadingProgress(2, label || "Загрузка карты / Loading map");
+}
+
+function hideLoadingOverlay() {
+  const root = document.getElementById("loadingMap");
+  if (root) root.hidden = true;
+}
+
+function setLoadingMessage(message) {
+  const root = document.getElementById("loadingMap");
+  if (!root) return;
+  const text = root.querySelector(".loading-label");
+  if (text) text.textContent = message; else root.textContent = message;
+}
+
+const pendingContinents = new Map();
+// Снимок континента качается один раз за сессию: повторный выбор в
+// переключателе берёт уже распакованные данные из памяти.
+async function ensureContinentLoaded(idx) {
+  const entry = ALL_DATA.continents[idx];
+  if (!entry) throw new Error(`Unknown continent index: ${idx}`);
+  if (entry.map) return entry;
+  let pending = pendingContinents.get(entry.key);
+  if (!pending) {
+    pending = fetchGzipJson(entry.file).then(payload => {
+      if (!payload || !payload.map) throw new Error(`Continent data is malformed: ${entry.file}`);
+      entry.map = payload.map;
+      if (payload.scanTiming) entry.scanTiming = payload.scanTiming;
+      if (Array.isArray(payload.landmarks)) entry.landmarks = payload.landmarks;
+      return entry;
+    }).catch(error => {
+      pendingContinents.delete(entry.key);
+      throw error;
+    });
+    pendingContinents.set(entry.key, pending);
+  }
+  return pending;
+}
+
+function setLoadingProgress(percent, label, indeterminate = false) {
+  const root = document.getElementById("loadingMap");
+  if (!root) return;
+  root.dataset.indeterminate = String(indeterminate);
+  root.setAttribute("aria-valuenow", String(percent));
+  root.setAttribute("aria-valuetext", label);
+  const text = root.querySelector(".loading-label");
+  const fill = root.querySelector(".loading-fill");
+  if (text) text.textContent = label;
+  if (fill && !indeterminate) fill.style.width = `${percent}%`;
+}
+
+let ALL_DATA;
 (async () => {
-const ALL_DATA = await loadAllData();
+ALL_DATA = await loadManifest();
 // При переключении континента loadMapData() заменяет текущий снимок карты.
 let MAP_DATA;
 // Фиксированный факт про этот континент (не тикает, в отличие от
@@ -844,6 +961,7 @@ function loadMapData(mapData) {
     if (p[1] < minY) minY = p[1];
     if (p[1] > maxY) maxY = p[1];
   }
+  setLoadingProgress(82, "Отрисовка слоёв карты / Drawing map layers", true);
   // Пустой отступ вокруг фактически отсканированной области — иначе
   // крайний ряд клеток упирается прямо в край канвы/вьюпорта, и границу
   // континент/океан не видно как форму (особенно на "Показать всё"). Отступ
@@ -900,23 +1018,31 @@ function loadMapData(mapData) {
     ownershipCtx.fillStyle = ownerColor(ownerIdx);
     for (const p of arr) ownershipCtx.fillRect((p[0] - minX) * PT, (p[1] - minY) * PT, PT, PT);
   }
+  setLoadingProgress(94, "Завершение загрузки / Finishing up", true);
   bctx.globalAlpha = 1;
 
-  // Bake low-zoom outlines with the existing coordinate index, avoiding a
-  // second coordinate Set for every owner.
   boundaryCanvas = document.createElement("canvas");
   boundaryCanvas.width = baseCanvas.width; boundaryCanvas.height = baseCanvas.height;
   const boundaryCtx = boundaryCanvas.getContext("2d");
   boundaryCtx.scale(1 / PT, 1 / PT);
-  const outlinePx = Math.max(1, PT * 0.4);
+
+  // Обводка по границе каждого владения — полупрозрачная заливка сама по
+  // себе плохо читается на пёстрой карте местности, особенно у мелких
+  // клочков земли; тонкая полоса сплошного цвета вдоль края (там, где
+  // сосед НЕ принадлежит тому же владельцу) делает территорию видимой с
+  // одного взгляда. Запекается сюда же, один раз при загрузке — не кадр за
+  // кадром — так что цена лишь в build-время, не в рендере.
+  const OUTLINE_PX = Math.max(1, PT * 0.4);
   for (const [ownerIdx, arr] of ownedByOwner) {
+    const ownerSet = new Set(arr.map(p => `${p[0]},${p[1]}`));
     boundaryCtx.fillStyle = ownerColor(ownerIdx);
     for (const p of arr) {
-      const [x,y] = p, sx=(x-minX)*PT, sy=(y-minY)*PT;
-      if (pointByCoord.get((x-1)+","+y)?.[5] !== ownerIdx) boundaryCtx.fillRect(sx,sy,outlinePx,PT);
-      if (pointByCoord.get((x+1)+","+y)?.[5] !== ownerIdx) boundaryCtx.fillRect(sx+PT-outlinePx,sy,outlinePx,PT);
-      if (pointByCoord.get(x+","+(y-1))?.[5] !== ownerIdx) boundaryCtx.fillRect(sx,sy,PT,outlinePx);
-      if (pointByCoord.get(x+","+(y+1))?.[5] !== ownerIdx) boundaryCtx.fillRect(sx,sy+PT-outlinePx,PT,outlinePx);
+      const wx = p[0], wy = p[1];
+      const sx = (wx - minX) * PT, sy = (wy - minY) * PT;
+      if (!ownerSet.has(`${wx - 1},${wy}`)) boundaryCtx.fillRect(sx, sy, OUTLINE_PX, PT);
+      if (!ownerSet.has(`${wx + 1},${wy}`)) boundaryCtx.fillRect(sx + PT - OUTLINE_PX, sy, OUTLINE_PX, PT);
+      if (!ownerSet.has(`${wx},${wy - 1}`)) boundaryCtx.fillRect(sx, sy, PT, OUTLINE_PX);
+      if (!ownerSet.has(`${wx},${wy + 1}`)) boundaryCtx.fillRect(sx, sy + PT - OUTLINE_PX, PT, OUTLINE_PX);
     }
   }
 
@@ -1858,7 +1984,7 @@ function drawBuildings(viewW, viewH, size, dim) {
   ctx.restore();
 }
 
-// Значки гор (по типу местности из data.json.gz) и деревьев (trees.json:
+// Значки гор (по типу местности из data.<key>.json.gz) и деревьев (trees.json:
 // {ключ_континента: {порода: [x0, y0, x1, y1, ...]}}). Только при крупном масштабе.
 let TREES = {};
 let PLANTS = {}, FRESH = {}, freshSetCache = {};
@@ -1975,7 +2101,9 @@ function render() {
   ctx.drawImage(baseCanvas, imgX, imgY, baseCanvas.width * PT * scale, baseCanvas.height * PT * scale);
   ctx.restore();
   if (mapTools.mode === "owners") ctx.drawImage(ownershipCanvas, imgX, imgY, ownershipCanvas.width * PT * scale, ownershipCanvas.height * PT * scale);
-  if (showBoundaries && sz < (mapTools.mode === "terrain" ? 2 : 8)) ctx.drawImage(boundaryCanvas, imgX, imgY, boundaryCanvas.width * PT * scale, boundaryCanvas.height * PT * scale);
+  if (showBoundaries && sz < (mapTools.mode === "terrain" ? 2 : 8)) {
+    ctx.drawImage(boundaryCanvas, imgX, imgY, boundaryCanvas.width * PT * scale, boundaryCanvas.height * PT * scale);
+  }
 
   if (showGrid && sz >= 4 && mapTools.mode === "terrain") {
     const [gx, gy] = worldToScreen(Math.floor(minX), Math.floor(minY));
@@ -2230,13 +2358,13 @@ window.addEventListener("resize", () => { resizeCanvas(); render(); });
 // ======================================================================
 // Переключатель континента
 // ======================================================================
-// Сегодня в ALL_DATA.continents всегда ровно один элемент (см.
-// build_site.py: без --continent сканируется единственный continent_*.json
-// и получает имя по умолчанию), но структура данных и переключатель
-// готовы к нескольким — когда появится второй скан, его достаточно будет
-// подключить флагом --continent при сборке, без правок JS.
+// Континенты грузятся по требованию: в памяти лежит только манифест, пока
+// континент не показан (см. ensureContinentLoaded). Переключатель поэтому
+// асинхронный: во время загрузки он заблокирован, а на карте виден прогресс.
 const continentSwitchEl = document.getElementById("continentSwitch");
 let currentContinentIdx = 0;
+let switchingContinent = false;
+let loadErrorTimer = 0;
 
 function renderContinentSwitch() {
   const continents = ALL_DATA.continents;
@@ -2252,7 +2380,32 @@ continentSwitchEl.addEventListener("change", () => {
   switchContinent(parseInt(continentSwitchEl.value, 10));
 });
 
-function switchContinent(idx) {
+async function switchContinent(idx) {
+  if (switchingContinent || !ALL_DATA.continents[idx]) {
+    continentSwitchEl.value = String(currentContinentIdx);
+    return;
+  }
+  const needsLoad = !ALL_DATA.continents[idx].map;
+  if (!needsLoad && idx === currentContinentIdx) return;
+  switchingContinent = true;
+  continentSwitchEl.disabled = true;
+  if (needsLoad) {
+    showLoadingOverlay("Загрузка континента / Loading continent");
+  }
+  try {
+    await ensureContinentLoaded(idx);
+  } catch (error) {
+    // Данные этого континента не скачались — остаёмся на прежнем, без
+    // «пустой» карты с чужими индексами.
+    console.error(error);
+    setLoadingMessage("Не удалось загрузить континент. Попробуйте ещё раз. / Could not load this continent. Please try again.");
+    clearTimeout(loadErrorTimer);
+    loadErrorTimer = setTimeout(hideLoadingOverlay, 6000);
+    continentSwitchEl.value = String(currentContinentIdx);
+    switchingContinent = false;
+    continentSwitchEl.disabled = false;
+    return;
+  }
   currentContinentIdx = idx; freeLandCache = -1;
   localStorage.setItem("lolsite.continent", ALL_DATA.continents[idx].key);
   const c = ALL_DATA.continents[idx];
@@ -2280,6 +2433,9 @@ function switchContinent(idx) {
   updateFreshness();
 
   document.title = t("pageTitleMap");
+  hideLoadingOverlay();
+  switchingContinent = false;
+  continentSwitchEl.disabled = false;
 }
 
 // ======================================================================
@@ -2536,7 +2692,10 @@ const mapTools = (() => {
       const plantCoords=plantData[objectCode.slice(5)];
       let quality=null;
       if(plantCoords) for(let i=0;i<plantCoords.length;i+=4) {
-        if(plantCoords[i]===picked.x&&plantCoords[i+1]===picked.y) { quality=plantCoords[i+2]; break; }
+      if(plantCoords[i]===picked.x&&plantCoords[i+1]===picked.y) {
+        quality=plantCoords[i+2];
+        break;
+      }
       }
       fields.push([tr('Качество дерева','Tree quality'),Number.isFinite(quality)?quality+'%':tr('Нет данных','No data')]);
     }
@@ -3041,7 +3200,7 @@ const monitor = (() => {
   };
   const color = {territory:'#f4b35e',resource:'#e4d662',terrain:'#b7cb7b',quality:'#d79bda',building:'#df8672',road:'#7ec8dc'};
   let manifest=null, selected=null, payload=null, events=[], visible=100, request=0, activeKind='all';
-  const panel=$('monitorPanel');if(!panel)return{draw(){},onData(){},localize(){}};
+  const panel=$('monitorPanel');
   const mobile=document.createElement('button');
   mobile.id='monitorOpen';mobile.type='button';mobile.className='mobile-only';
   canvas.parentElement.append(mobile);
@@ -3183,8 +3342,13 @@ const monitor = (() => {
 })();
 
 // --- boot ---
-const savedContinentKey = new URLSearchParams(location.hash.slice(1)).get("continent") || localStorage.getItem("lolsite.continent");
-currentContinentIdx = Math.max(0, ALL_DATA.continents.findIndex(c => c.key === savedContinentKey));
+// Стартуем всегда с континента по умолчанию (Орентия): запомненный в
+// localStorage прошлый выбор не решает, что качать. Явная ссылка
+// #continent=<key> — осознанный выбор в «поделиться», её уважаем.
+const hashContinentKey = new URLSearchParams(location.hash.slice(1)).get("continent");
+const wantedContinentKey = hashContinentKey || ALL_DATA.default;
+currentContinentIdx = Math.max(0, ALL_DATA.continents.findIndex(c => c.key === wantedContinentKey));
+await ensureContinentLoaded(currentContinentIdx);
 const bootContinent = ALL_DATA.continents[currentContinentIdx];
 document.getElementById("continentNameLabel").textContent = bootContinent.name;
 // Этот путь загрузки (первый заход на страницу) не проходит через
@@ -3205,10 +3369,9 @@ resizeCanvas();
 fitToView();
 applyLang(currentLang);
 mapTools.restoreLink();
-document.getElementById("loadingMap").hidden = true;
+hideLoadingOverlay();
 })().catch(error => {
-  const status = document.getElementById("loadingMap");
-  if (status) status.textContent = "Не удалось загрузить карту. Обновите страницу. / Map could not load. Please reload.";
+  setLoadingMessage("Не удалось загрузить карту. Обновите страницу. / Map could not load. Please reload.");
   console.error(error);
 });
 </script>
