@@ -274,24 +274,6 @@
 #mapView .side-panel { min-height:0; flex:1; overflow:auto; padding:10px; }
 #mapView #resourcePanel { display:flex; flex-direction:column; padding:0; }
 #mapView #resourcePanel .legend-scroll { flex:1 0 auto; overflow:visible; }
-#mapView .monitor-panel { flex:0 0 auto; max-height:42%; display:flex; flex-direction:column; min-height:130px; padding:10px; border-bottom:1px solid var(--panel-border); gap:7px; }
-#mapView .monitor-head { display:flex; align-items:baseline; justify-content:space-between; gap:6px; font-size:12px; }
-#mapView .monitor-head strong { color:var(--accent); font-size:13px; }
-#mapView #monitorPeriod { color:var(--ink-dim); font-size:10px; text-align:right; }
-#mapView #monitorRelease { width:100%; padding:6px; background:var(--bg); border:1px solid var(--panel-border); color:var(--ink); border-radius:5px; }
-#mapView .monitor-summary { font-size:11px; color:var(--ink-dim); line-height:1.35; }
-#mapView .monitor-filters { display:flex; flex-wrap:wrap; gap:3px; }
-#mapView .monitor-filters button { padding:3px 6px; border:1px solid var(--panel-border); background:var(--bg); color:var(--ink-dim); border-radius:12px; font-size:11px; cursor:pointer; }
-#mapView .monitor-filters button.active { background:var(--accent); color:var(--accent-ink); }
-#mapView .monitor-feed { min-height:36px; overflow-y:auto; overscroll-behavior:contain; }
-#mapView .monitor-event { display:flex; gap:7px; width:100%; text-align:left; padding:6px 3px; border:0; border-bottom:1px solid var(--panel-border); background:transparent; color:var(--ink); cursor:pointer; }
-#mapView .monitor-event:hover { background:rgba(201,138,62,.12); }
-#mapView .monitor-event span:last-child { min-width:0; }
-#mapView .monitor-event b { display:block; font-size:11px; }
-#mapView .monitor-event small { display:block; color:var(--ink-dim); overflow-wrap:anywhere; font-size:10px; }
-#mapView .monitor-dot { flex:none; width:8px; height:8px; border-radius:50%; margin-top:4px; }
-#mapView #monitorMore { padding:5px; border:1px solid var(--panel-border); border-radius:5px; background:var(--bg); color:var(--ink); cursor:pointer; }
-#mapView #monitorOpen { display:none; }
 #mapView .sidebar-foot { padding:8px 10px; }
 #mapView button, #mapView select, #mapView input { font:inherit; }
 #mapView .side-panel, #mapView .side-tabs, #mapView .map-controls, #mapView .object-card { font:13px system-ui,sans-serif; }
@@ -347,8 +329,6 @@
 #mapView #drawingActions button { background:var(--bg); color:var(--ink); border:1px solid var(--panel-border); border-radius:5px; padding:8px; cursor:pointer; }
 .mobile-only { display:none; }
 @media(max-width:760px) {
-  #mapView .monitor-panel { max-height:48%; min-height:150px; }
-  #mapView #monitorOpen:not([hidden]) { display:block; position:absolute; right:8px; bottom:66px; z-index:4; padding:9px; border:1px solid var(--accent); border-radius:7px; background:var(--panel); color:var(--ink); }
   #mapView .sidebar { position:absolute; bottom:0; left:0; right:0; width:100%; height:66%; z-index:10; border-top:1px solid var(--accent); border-radius:14px 14px 0 0; transform:translateY(105%); transition:transform .18s; box-shadow:0 -10px 40px #0007; }
   #mapView .sidebar.open { transform:translateY(0); }
   #mapView .sidebar-head, #mapView .stats, #mapView .sidebar-foot { display:none; }
@@ -398,14 +378,6 @@
     </div>
     <div class="stats" id="statsBlock"></div>
         <button id="closeSidebar" class="mobile-only" data-mt="close">Закрыть</button>
-    <section id="monitorPanel" class="monitor-panel" aria-label="Изменения Орентии">
-      <div class="monitor-head"><strong id="monitorTitle">Изменения Орентии</strong><span id="monitorPeriod"></span></div>
-      <select id="monitorRelease" aria-label="Период изменений"></select>
-      <div id="monitorSummary" class="monitor-summary" aria-live="polite">Загрузка истории…</div>
-      <div id="monitorFilters" class="monitor-filters" role="group" aria-label="Тип изменений"></div>
-      <div id="monitorFeed" class="monitor-feed"></div>
-      <button id="monitorMore" type="button" hidden>Показать ещё</button>
-    </section>
     <nav class="side-tabs" aria-label="Map tools">
       <button data-panel="resource" class="active" data-mt="resources">Ресурсы</button>
       <button data-panel="owner" data-mt="owners">Владения</button>
@@ -3044,7 +3016,7 @@ const monitor = (() => {
   };
   const color = {territory:'#f4b35e',resource:'#e4d662',terrain:'#b7cb7b',quality:'#d79bda',building:'#df8672',road:'#7ec8dc'};
   let manifest=null, selected=null, payload=null, events=[], visible=100, request=0, activeKind='all';
-  const panel=$('monitorPanel');
+  const panel=$('monitorPanel');if(!panel)return{draw(){},onData(){},localize(){}};
   const mobile=document.createElement('button');
   mobile.id='monitorOpen';mobile.type='button';mobile.className='mobile-only';
   canvas.parentElement.append(mobile);
