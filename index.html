@@ -274,6 +274,24 @@
 #mapView .side-panel { min-height:0; flex:1; overflow:auto; padding:10px; }
 #mapView #resourcePanel { display:flex; flex-direction:column; padding:0; }
 #mapView #resourcePanel .legend-scroll { flex:1 0 auto; overflow:visible; }
+#mapView .monitor-panel { flex:0 0 auto; max-height:42%; display:flex; flex-direction:column; min-height:130px; padding:10px; border-bottom:1px solid var(--panel-border); gap:7px; }
+#mapView .monitor-head { display:flex; align-items:baseline; justify-content:space-between; gap:6px; font-size:12px; }
+#mapView .monitor-head strong { color:var(--accent); font-size:13px; }
+#mapView #monitorPeriod { color:var(--ink-dim); font-size:10px; text-align:right; }
+#mapView #monitorRelease { width:100%; padding:6px; background:var(--bg); border:1px solid var(--panel-border); color:var(--ink); border-radius:5px; }
+#mapView .monitor-summary { font-size:11px; color:var(--ink-dim); line-height:1.35; }
+#mapView .monitor-filters { display:flex; flex-wrap:wrap; gap:3px; }
+#mapView .monitor-filters button { padding:3px 6px; border:1px solid var(--panel-border); background:var(--bg); color:var(--ink-dim); border-radius:12px; font-size:11px; cursor:pointer; }
+#mapView .monitor-filters button.active { background:var(--accent); color:var(--accent-ink); }
+#mapView .monitor-feed { min-height:36px; overflow-y:auto; overscroll-behavior:contain; }
+#mapView .monitor-event { display:flex; gap:7px; width:100%; text-align:left; padding:6px 3px; border:0; border-bottom:1px solid var(--panel-border); background:transparent; color:var(--ink); cursor:pointer; }
+#mapView .monitor-event:hover { background:rgba(201,138,62,.12); }
+#mapView .monitor-event span:last-child { min-width:0; }
+#mapView .monitor-event b { display:block; font-size:11px; }
+#mapView .monitor-event small { display:block; color:var(--ink-dim); overflow-wrap:anywhere; font-size:10px; }
+#mapView .monitor-dot { flex:none; width:8px; height:8px; border-radius:50%; margin-top:4px; }
+#mapView #monitorMore { padding:5px; border:1px solid var(--panel-border); border-radius:5px; background:var(--bg); color:var(--ink); cursor:pointer; }
+#mapView #monitorOpen { display:none; }
 #mapView .sidebar-foot { padding:8px 10px; }
 #mapView button, #mapView select, #mapView input { font:inherit; }
 #mapView .side-panel, #mapView .side-tabs, #mapView .map-controls, #mapView .object-card { font:13px system-ui,sans-serif; }
@@ -329,6 +347,8 @@
 #mapView #drawingActions button { background:var(--bg); color:var(--ink); border:1px solid var(--panel-border); border-radius:5px; padding:8px; cursor:pointer; }
 .mobile-only { display:none; }
 @media(max-width:760px) {
+  #mapView .monitor-panel { max-height:48%; min-height:150px; }
+  #mapView #monitorOpen:not([hidden]) { display:block; position:absolute; right:8px; bottom:66px; z-index:4; padding:9px; border:1px solid var(--accent); border-radius:7px; background:var(--panel); color:var(--ink); }
   #mapView .sidebar { position:absolute; bottom:0; left:0; right:0; width:100%; height:66%; z-index:10; border-top:1px solid var(--accent); border-radius:14px 14px 0 0; transform:translateY(105%); transition:transform .18s; box-shadow:0 -10px 40px #0007; }
   #mapView .sidebar.open { transform:translateY(0); }
   #mapView .sidebar-head, #mapView .stats, #mapView .sidebar-foot { display:none; }
@@ -378,6 +398,14 @@
     </div>
     <div class="stats" id="statsBlock"></div>
         <button id="closeSidebar" class="mobile-only" data-mt="close">Закрыть</button>
+    <section id="monitorPanel" class="monitor-panel" aria-label="Изменения Орентии">
+      <div class="monitor-head"><strong id="monitorTitle">Изменения Орентии</strong><span id="monitorPeriod"></span></div>
+      <select id="monitorRelease" aria-label="Период изменений"></select>
+      <div id="monitorSummary" class="monitor-summary" aria-live="polite">Загрузка истории…</div>
+      <div id="monitorFilters" class="monitor-filters" role="group" aria-label="Тип изменений"></div>
+      <div id="monitorFeed" class="monitor-feed"></div>
+      <button id="monitorMore" type="button" hidden>Показать ещё</button>
+    </section>
     <nav class="side-tabs" aria-label="Map tools">
       <button data-panel="resource" class="active" data-mt="resources">Ресурсы</button>
       <button data-panel="owner" data-mt="owners">Владения</button>
@@ -2034,6 +2062,8 @@ function render() {
   drawQualityStars(viewW, viewH, sz, dim);
   drawLandStars(viewW, viewH, sz, dim);
 
+  monitor.draw(viewW, viewH, sz);
+
   mapTools.drawSettlements(viewW, viewH, sz, dim);
   ctx.globalAlpha = 1;
 
@@ -2254,6 +2284,7 @@ function switchContinent(idx) {
   resizeCanvas();
   fitToView();
   mapTools.onData();
+  monitor.onData();
   render();
   renderStatsBlock();
   renderScanDurationBadge();
@@ -2292,6 +2323,7 @@ function applyLang(lang) {
 
   document.title = t("pageTitleMap");
   if (mapTools.ready) mapTools.localize();
+  monitor.localize();
 }
 document.querySelectorAll("#langSwitch .switch-btn").forEach(btn => {
   btn.addEventListener("click", () => applyLang(btn.dataset.lang));
@@ -2997,7 +3029,160 @@ const mapTools = (() => {
   });
   function endTouch(e){if(!touches.has(e.pointerId))return;e.preventDefault();const click=touches.size===1&&!pointerStart.moved&&e.type!=='pointercancel';touches.delete(e.pointerId);previousTouch=null;if(click)clickAt(e.clientX,e.clientY);}
   canvas.addEventListener('pointerup',endTouch);canvas.addEventListener('pointercancel',endTouch);
-  return Object.assign(state,{onData,localize,renderOwners,drawUnknown,drawSettlements,drawResourceResults,drawExtras,zoomAt,clickAt,restoreLink,terrainColor});
+  function jumpTo(x,y) { scale=Math.max(scale,6/PT); jumpCenter(x,y); syncLink(); closeSidebar(); }
+  return Object.assign(state,{onData,localize,renderOwners,drawUnknown,drawSettlements,drawResourceResults,drawExtras,zoomAt,clickAt,restoreLink,terrainColor,jumpTo});
+})();
+
+// Static, on-demand history. The map itself remains usable if the archive is absent.
+const monitor = (() => {
+  const $ = id => document.getElementById(id);
+  const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const tr = (ru,en) => currentLang === 'ru' ? ru : en;
+  const names = {
+    territory:['Владения','Territory'], resource:['Ресурсы','Resources'], terrain:['Местность','Terrain'],
+    quality:['Качество','Quality'], building:['Постройки','Buildings'], road:['Дороги','Roads']
+  };
+  const color = {territory:'#f4b35e',resource:'#e4d662',terrain:'#b7cb7b',quality:'#d79bda',building:'#df8672',road:'#7ec8dc'};
+  let manifest=null, selected=null, payload=null, events=[], visible=100, request=0, activeKind='all';
+  const panel=$('monitorPanel');
+  const mobile=document.createElement('button');
+  mobile.id='monitorOpen';mobile.type='button';mobile.className='mobile-only';
+  canvas.parentElement.append(mobile);
+  mobile.onclick=()=>{document.querySelector('#mapView .sidebar').classList.add('open');$('openSidebar').setAttribute('aria-expanded','true');panel.scrollIntoView({block:'start'});};
+
+  function name(kind) { return (names[kind]||[kind,kind])[currentLang==='ru'?0:1]; }
+  function summaryText(summary) {
+    const count=Object.values(summary.events||{}).reduce((a,b)=>a+b,0);
+    const cells=summary.totalCells??Object.values(summary.cells||{}).reduce((a,b)=>a+b,0);
+    const observed=summary.firstObserved||0;
+    return `${tr('Событий','Events')}: ${count.toLocaleString()} · ${tr('клеток','cells')}: ${cells.toLocaleString()}`+
+      (observed?` · ${tr('впервые проверено','first observed')}: ${observed.toLocaleString()}`:'');
+  }
+  function detail(event) {
+    if(event.kind==='territory') {
+      const old=event.old.owner||tr('свободно','free'), now=event.new.owner||tr('свободно','free');
+      return `${old} → ${now}`;
+    }
+    if(event.kind==='quality') return `${event.type||''}: ${event.old}% → ${event.new}%`;
+    if(event.kind==='road') return `${event.old?tr('дорога','road'):tr('без дороги','no road')} → ${event.new?tr('дорога','road'):tr('без дороги','no road')}`;
+    return `${event.old||tr('нет','none')} → ${event.new||tr('нет','none')}`;
+  }
+  function filtered() { return activeKind==='all'?events:events.filter(e=>e.kind===activeKind); }
+  function renderFilters() {
+    const kinds=['all',...Object.keys(names)];
+    const current=manifest?.releases?.find(r=>r.id===selected)||manifest?.releases?.[0];
+    const counts=current?.summary?.events||{};
+    const total=Object.values(counts).reduce((a,b)=>a+b,0);
+    $('monitorFilters').innerHTML=kinds.map(kind=>`<button type="button" data-kind="${kind}" class="${activeKind===kind?'active':''}" aria-pressed="${activeKind===kind}">${kind==='all'?tr('Все','All'):name(kind)} ${kind==='all'?total:(counts[kind]||0)}</button>`).join('');
+  }
+  function renderFeed() {
+    if(!payload) { $('monitorFeed').innerHTML='';$('monitorMore').hidden=true;return; }
+    const rows=filtered();
+    $('monitorFeed').innerHTML=rows.slice(0,visible).map((event,index)=>
+      `<button type="button" class="monitor-event" data-event="${index}"><span class="monitor-dot" style="background:${color[event.kind]||'#ccc'}"></span><span><b>${esc(name(event.kind))}${event.count>1?' · '+event.count.toLocaleString()+' '+tr('клеток','cells'):''}</b><small>${esc(detail(event))}</small><small>${event.x}, ${event.y}</small></span></button>`
+    ).join('') || `<p class="muted">${tr('В этой категории нет проверенных изменений.','No verified changes in this category.')}</p>`;
+    $('monitorMore').hidden=rows.length<=visible;
+  }
+  function renderPeriod() {
+    if(!manifest?.releases?.length) {
+      $('monitorRelease').hidden=true;
+      $('monitorPeriod').textContent='';
+      $('monitorSummary').textContent=tr('История появится после полного скана.','History will appear after the full scan.');
+      $('monitorFilters').innerHTML='';renderFeed();return;
+    }
+    $('monitorRelease').hidden=false;
+    $('monitorRelease').innerHTML=manifest.releases.map(r=>`<option value="${esc(r.id)}">${esc(r.to||r.releasedAt)} (${esc(r.id)})</option>`).join('');
+    $('monitorRelease').value=selected||manifest.releases[0].id;
+    const entry=manifest.releases.find(r=>r.id===$('monitorRelease').value);
+    $('monitorPeriod').textContent=entry?`${entry.from||'?'} → ${entry.to||'?'}`:'';
+    $('monitorSummary').textContent=entry?summaryText(entry.summary):'';
+    renderFilters();renderFeed();
+  }
+  async function fetchJsonGzip(url) {
+    const response=await fetch(url);
+    if(!response.ok) throw Error(`${response.status} ${url}`);
+    const bytes=await response.arrayBuffer();
+    try {
+      return JSON.parse(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text());
+    } catch {
+      return JSON.parse(new TextDecoder().decode(bytes));
+    }
+  }
+  async function choose(id) {
+    selected=id;payload=null;events=[];visible=100;renderPeriod();render();
+    const entry=manifest.releases.find(r=>r.id===id);
+    if(!entry)return;
+    const token=++request;
+    $('monitorFeed').innerHTML=`<p class="muted">${tr('Загрузка событий…','Loading events…')}</p>`;
+    try {
+      const data=await fetchJsonGzip(`monitor/${entry.file}`);
+      if(token!==request)return;
+      if(data.version!==1||data.id!==id||!Array.isArray(data.events))throw Error('invalid archive');
+      payload=data;events=data.events;renderFeed();render();
+    } catch(error) {
+      if(token!==request)return;
+      $('monitorFeed').innerHTML=`<p class="muted">${tr('Не удалось загрузить этот период.','Could not load this period.')}</p>`;
+      console.error(error);
+    }
+  }
+  async function onData() {
+    const token=++request;
+    payload=null;events=[];selected=null;manifest=null;activeKind='all';visible=100;
+    const orentia=ALL_DATA.continents[currentContinentIdx].key==='orentia';
+    panel.hidden=!orentia;mobile.hidden=!orentia;
+    if(!orentia)return;
+    renderPeriod();
+    try {
+      const response=await fetch('monitor/index.json',{cache:'no-cache'});
+      if(!response.ok)throw Error(String(response.status));
+      const value=await response.json();
+      if(token!==request)return;
+      if(value.version!==1||value.continent!=='orentia'||!Array.isArray(value.releases))throw Error('invalid manifest');
+      manifest=value;
+      if(value.releases.length)await choose(value.releases[0].id);
+      else renderPeriod();
+    } catch(error) {
+      if(token!==request)return;
+      manifest={releases:[]};renderPeriod();
+    }
+  }
+  function localize() {
+    $('monitorTitle').textContent=tr('Изменения Орентии','Orentia changes');
+    mobile.textContent=tr('Изменения','Changes');
+    $('monitorMore').textContent=tr('Показать ещё','Show more');
+    renderPeriod();
+  }
+  function draw(viewW,viewH,sz) {
+    if(!payload||ALL_DATA.continents[currentContinentIdx].key!=='orentia')return;
+    const rows=filtered();
+    ctx.save();ctx.globalAlpha=.82;
+    const showCells=sz>=5;
+    const a=screenToWorld(-sz,-sz), b=screenToWorld(viewW+sz,viewH+sz);
+    for(const event of rows) {
+      const bounds=showCells&&event.bounds?event.bounds:[event.x,event.y,event.x,event.y];
+      if(bounds[2]<a[0]||bounds[0]>b[0]||bounds[3]<a[1]||bounds[1]>b[1])continue;
+      const points=showCells&&event.cells?event.cells:[[event.x,event.y]];
+      ctx.fillStyle=color[event.kind]||'#eee';
+      for(const [x,y] of points) {
+        if(x<a[0]||x>b[0]||y<a[1]||y>b[1])continue;
+        const [sx,sy]=worldToScreen(x,y);
+        if(sx < -sz||sy < -sz||sx > viewW+sz||sy > viewH+sz)continue;
+        ctx.beginPath();ctx.arc(sx,sy,Math.max(2,Math.min(6,sz*.24)),0,Math.PI*2);ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+  $('monitorRelease').onchange=()=>choose($('monitorRelease').value);
+  $('monitorFilters').onclick=e=>{
+    const button=e.target.closest('[data-kind]');if(!button)return;
+    activeKind=button.dataset.kind;visible=100;renderFilters();renderFeed();render();
+  };
+  $('monitorFeed').onclick=e=>{
+    const button=e.target.closest('[data-event]');if(!button)return;
+    const event=filtered()[Number(button.dataset.event)];if(event)mapTools.jumpTo(event.x,event.y);
+  };
+  $('monitorMore').onclick=()=>{visible+=100;renderFeed();};
+  return {onData,localize,draw};
 })();
 
 // --- boot ---
@@ -3016,6 +3201,7 @@ SCAN_TIMING = bootContinent.scanTiming || null;
 LANDMARKS = bootContinent.landmarks || [];
 loadMapData(bootContinent.map);
 mapTools.onData();
+monitor.onData();
 renderContinentSwitch();
 
 resizeCanvas();
