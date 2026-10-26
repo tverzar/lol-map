@@ -38,16 +38,19 @@
   }
   @keyframes loading-sweep { from { transform: translateX(0); } to { transform: translateX(185%); } }
   #loadingMap .loading-scene { position:relative; width:min(320px,84vw); height:168px; margin:0 auto -2px; overflow:hidden; }
-  #loadingMap .loading-mason { position:absolute; left:42px; bottom:0; width:74px; height:166px; z-index:2;
-    background:url("assets/loading/mason-sprite-v1.png") 0 0/600% 100% no-repeat;
-    filter:drop-shadow(0 4px 5px rgba(0,0,0,.55)); animation:mason-build 2.7s steps(5,end) infinite; }
+  #loadingMap .loading-mason { position:absolute; left:42px; bottom:0; width:74px; height:166px; z-index:2; overflow:hidden;
+    filter:drop-shadow(0 4px 5px rgba(0,0,0,.55)); animation:mason-bob .9s ease-in-out infinite alternate; }
+  #loadingMap .loading-mason::before { content:""; position:absolute; inset:0 auto 0 0; width:600%;
+    background:url("assets/loading/mason-sprite-v1.png") 0 0/100% 100% no-repeat;
+    will-change:transform; animation:mason-frames 2.7s steps(5,end) infinite; }
   #loadingMap .loading-wall { position:absolute; right:48px; bottom:7px; width:112px; display:grid; grid-template-columns:repeat(4,1fr); gap:2px; align-content:end; }
   #loadingMap .loading-wall i { height:13px; border:1px solid transparent; border-radius:2px; background:transparent; opacity:0; transform:translateY(-5px) scale(.9); transition:opacity .2s,transform .25s,background .2s; }
   #loadingMap .loading-wall i.built { background:linear-gradient(#b65f34,#8d4528); box-shadow:inset 0 2px #d18455,inset 0 -2px #5c2d1d; opacity:1; transform:none; }
   #loadingMap .loading-wall i:nth-child(8n+5) { margin-left:11px; }
   #loadingMap .loading-wall i:nth-child(8n+8) { margin-right:-11px; }
-  @keyframes mason-build { from { background-position:0 0; } to { background-position:100% 0; } }
-  @media(prefers-reduced-motion:reduce) { #loadingMap .loading-mason { animation:none; } #loadingMap .loading-wall i { transition:none; } }
+  @keyframes mason-frames { from { transform:translateX(0); } to { transform:translateX(-83.3333%); } }
+  @keyframes mason-bob { from { transform:translateY(0); } to { transform:translateY(-1.5px); } }
+  @media(prefers-reduced-motion:reduce) { #loadingMap .loading-mason, #loadingMap .loading-mason::before { animation:none; } #loadingMap .loading-wall i { transition:none; } }
 
   /* --- верхняя панель: континент + переключатель языка --- */
   .topbar {
@@ -692,7 +695,9 @@ function showLoadingOverlay(label) {
 
 function hideLoadingOverlay() {
   const root = document.getElementById("loadingMap");
-  if (root) root.hidden = true;
+  if (!root) return;
+  setLoadingProgress(100, "Готово / Ready");
+  setTimeout(() => { root.hidden = true; }, 220);
 }
 
 function setLoadingMessage(message) {
@@ -737,7 +742,8 @@ function setLoadingProgress(percent, label, indeterminate = false) {
   if (text) text.textContent = label;
   if (fill && !indeterminate) fill.style.width = `${percent}%`;
   const bricks = [...root.querySelectorAll(".loading-wall i")];
-  const built = Math.round(Math.max(0, Math.min(100, percent)) / 100 * bricks.length);
+  const safePercent = Math.max(0, Math.min(100, percent));
+  const built = safePercent >= 100 ? bricks.length : Math.min(bricks.length - 2, Math.floor(safePercent / 100 * bricks.length));
   bricks.forEach((brick, index) => brick.classList.toggle("built", index >= bricks.length - built));
 }
 
