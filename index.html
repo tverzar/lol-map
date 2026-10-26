@@ -537,6 +537,7 @@
       <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerLandNums"><span data-i18n="layerLandNums">Числа на земле</span></label>
       <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerStars" checked><span data-i18n="layerStars">Качество минералов (звёзды)</span></label>
       <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerPlantQuality"><span data-i18n="layerPlantQuality">Качество растений</span></label>
+      <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerPlantHoverQuality"><span data-i18n="layerPlantHoverQuality">Качество растений при наведении</span></label>
       <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerRoads" checked><span data-i18n="layerRoads">Дороги</span></label>
       <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerGrid" checked><span data-i18n="layerGrid">Сетка клеток</span></label>
       <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerNature" checked><span data-i18n="layerNature">Деревья и горы</span></label>
@@ -580,7 +581,7 @@ const I18N = {
     statScanTime: "Континент пройден за",
     depositsGroup: "Ценные месторождения", terrainGroup: "Типы местности",
     failedToCheck: "Не удалось проверить",
-    best: (q) => `лучшее ${q}%`, topN: (n) => ` · топ-${n}`, layerStars: "Качество минералов (звёзды)", layerPlantQuality: "Качество растений", layerLandStars: "Звёзды на земле", layerLandNums: "Числа на земле", freeLabel: (n) => `свободно: ${n}`,
+    best: (q) => `лучшее ${q}%`, topN: (n) => ` · топ-${n}`, layerStars: "Качество минералов (звёзды)", layerPlantQuality: "Качество растений", layerPlantHoverQuality: "Качество растений при наведении", treeQuality: (q) => `Качество растения: ${q}`, noData: "Нет данных", layerLandStars: "Звёзды на земле", layerLandNums: "Числа на земле", freeLabel: (n) => `свободно: ${n}`,
     badgeFree: "свободно", badgeOccupied: "занято", badgeOwn: "наш домен",
     tQuality: (q) => `${q}% качество`, cellsCount: (n) => `${n} клеток`,
   },
@@ -605,7 +606,7 @@ const I18N = {
     statScanTime: "Continent scanned in",
     depositsGroup: "Valuable deposits", terrainGroup: "Terrain types",
     failedToCheck: "Failed to check",
-    best: (q) => `best ${q}%`, topN: (n) => ` · top-${n}`, layerStars: "Quality of minerals (stars)", layerPlantQuality: "Plant quality", layerLandStars: "Stars on land", layerLandNums: "Numbers on land", freeLabel: (n) => `free: ${n}`,
+    best: (q) => `best ${q}%`, topN: (n) => ` · top-${n}`, layerStars: "Quality of minerals (stars)", layerPlantQuality: "Plant quality", layerPlantHoverQuality: "Plant quality on hover", treeQuality: (q) => `Plant quality: ${q}`, noData: "No data", layerLandStars: "Stars on land", layerLandNums: "Numbers on land", freeLabel: (n) => `free: ${n}`,
     badgeFree: "free", badgeOccupied: "claimed", badgeOwn: "our domain",
     tQuality: (q) => `${q}% quality`, cellsCount: (n) => `${n} cells`,
   },
@@ -1109,6 +1110,7 @@ let showGrid = true;
 let showRoads = true;
 let showStars = true;
 let showPlantQuality = false;
+let showPlantHoverQuality = false;
 let showLandStars = false;
 let showLandNums = false;
 let showFreeOnly = false; // слой: только свободные клетки (выбранного типа или все месторождения)
@@ -1190,7 +1192,7 @@ const layersCard = document.getElementById("layersCard");
 document.getElementById("layersToggle").addEventListener("click", () => {
   layersCard.hidden = !layersCard.hidden;
 });
-const SAVED_LAYERS = ["layerGrid", "layerRoads", "layerStars", "layerPlantQuality", "layerLandStars", "layerLandNums", "layerBuildings", "layerNature"];
+const SAVED_LAYERS = ["layerGrid", "layerRoads", "layerStars", "layerPlantQuality", "layerPlantHoverQuality", "layerLandStars", "layerLandNums", "layerBuildings", "layerNature"];
 for (const [id, setter] of [
   ["layerBoundaries", v => showBoundaries = v],
   ["layerSettlements", v => showSettlements = v],
@@ -1202,6 +1204,7 @@ for (const [id, setter] of [
   ["layerRoads", v => showRoads = v],
   ["layerStars", v => showStars = v],
   ["layerPlantQuality", v => showPlantQuality = v],
+  ["layerPlantHoverQuality", v => showPlantHoverQuality = v],
   ["layerLandStars", v => showLandStars = v],
   ["layerLandNums", v => showLandNums = v],
   ["layerFailures", v => showFailed = v],
@@ -1759,6 +1762,18 @@ function cellObjectName(x, y) {
 window.cellObjectCode = cellObjectCode;
 window.cellObjectName = cellObjectName;
 window.getPlantData = () => PLANTS[ALL_DATA.continents[currentContinentIdx].key] || {};
+window.cellPlantQuality = (x, y, species) => {
+  const continent = ALL_DATA.continents[currentContinentIdx].key;
+  const cache = plantQualityIndex[continent] || (plantQualityIndex[continent] = {});
+  let index = cache[species];
+  if (!index) {
+    index = cache[species] = new Map();
+    const a = (PLANTS[continent] || {})[species] || [];
+    for (let i = 0; i < a.length; i += 4) index.set(a[i] + "," + a[i + 1], a[i + 2]);
+  }
+  const quality = index.get(x + "," + y);
+  return Number.isFinite(quality) ? quality : null;
+};
 window.getFreshSet = () => {
   const key = ALL_DATA.continents[currentContinentIdx].key;
   if (!freshSetCache[key]) { const a = FRESH[key] || [], st = new Set(); for (let i = 0; i < a.length; i += 2) st.add(a[i] + "," + a[i + 1]); freshSetCache[key] = st; }
@@ -2028,8 +2043,8 @@ function drawBuildings(viewW, viewH, size, dim) {
 // Значки гор (по типу местности из data.<key>.json.gz) и деревьев (trees.json:
 // {ключ_континента: {порода: [x0, y0, x1, y1, ...]}}). Только при крупном масштабе.
 let TREES = {};
-let PLANTS = {}, FRESH = {}, freshSetCache = {};
-fetch("plants.json").then(r => r.ok ? r.json() : {}).then(j => { PLANTS = j; if (window.refreshListOptions) window.refreshListOptions(); if (window.refreshObjectCard) window.refreshObjectCard(); }).catch(() => {});
+let PLANTS = {}, FRESH = {}, freshSetCache = {}, plantQualityIndex = {};
+fetch("plants.json").then(r => r.ok ? r.json() : {}).then(j => { PLANTS = j; plantQualityIndex = {}; if (window.refreshListOptions) window.refreshListOptions(); if (window.refreshObjectCard) window.refreshObjectCard(); }).catch(() => {});
 fetch("fresh.json").then(r => r.ok ? r.json() : {}).then(j => { FRESH = j; freshSetCache = {}; if (window.refreshListOptions) window.refreshListOptions(); }).catch(() => {});
 fetch("trees.json").then(r => r.ok ? r.json() : {}).then(j => { TREES = j; objCache = {}; render(); }).catch(() => {});
 const MOUNTAIN_STYLE = {
@@ -2361,8 +2376,14 @@ canvas.addEventListener("mousemove", (e) => {
   const mt = MAP_DATA.types[p[2]];
   const owner = MAP_DATA.owners[p[5]];
   const statusText = p[4] === 1 || p[4] === 2 ? `${t("badgeOccupied")}${owner ? ": " + owner : ""}` : t("badgeFree");
+  const objCode = cellObjectCode(p[0], p[1]);
   const objN = cellObjectName(p[0], p[1]);
-  tooltip.innerHTML = `<span class="t-type">${typeFullName(mt)}</span>${objN ? " · " + objN : ""}<br>${t("tQuality", p[3])}<br>${statusText}`;
+  let plantLine = "";
+  if (showPlantHoverQuality && objCode.startsWith("tree:")) {
+    const quality = window.cellPlantQuality(p[0], p[1], objCode.slice(5));
+    plantLine = `<br>${t("treeQuality", quality === null ? t("noData") : quality + "%")}`;
+  }
+  tooltip.innerHTML = `<span class="t-type">${typeFullName(mt)}</span>${objN ? " · " + objN : ""}<br>${t("tQuality", p[3])}${plantLine}<br>${statusText}`;
   tooltip.style.left = (sx + 16) + "px";
   tooltip.style.top = (sy + 12) + "px";
   tooltip.style.display = "block";
@@ -2736,15 +2757,7 @@ const mapTools = (() => {
     const objName=(!r&&window.cellObjectName)?window.cellObjectName(picked.x,picked.y):''; if(objName) fields.push([tr('Объект','Object'),objName]);
     const objectCode=(!r&&window.cellObjectCode)?window.cellObjectCode(picked.x,picked.y):'';
     if(objectCode.startsWith('tree:')) {
-      const plantData=window.getPlantData?window.getPlantData():{};
-      const plantCoords=plantData[objectCode.slice(5)];
-      let quality=null;
-      if(plantCoords) for(let i=0;i<plantCoords.length;i+=4) {
-      if(plantCoords[i]===picked.x&&plantCoords[i+1]===picked.y) {
-        quality=plantCoords[i+2];
-        break;
-      }
-      }
+      const quality=window.cellPlantQuality?window.cellPlantQuality(picked.x,picked.y,objectCode.slice(5)):null;
       fields.push([tr('Качество дерева','Tree quality'),Number.isFinite(quality)?quality+'%':tr('Нет данных','No data')]);
     }
     if(owner) fields.push([tr('Владение','Domain'),owner]);
