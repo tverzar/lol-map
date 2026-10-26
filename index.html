@@ -317,6 +317,9 @@
 #mapView .tool-grid { display:grid; grid-template-columns:1fr 1fr; gap:5px; margin-top:10px; }
 #mapView .resource-filters { margin:0 10px 8px; padding:8px; border:1px solid var(--panel-border); border-radius:6px; }
 #mapView .resource-filters summary { cursor:pointer; color:var(--accent); }
+#mapView .map-free-filter { margin:8px 10px !important; padding:7px 8px; border:1px solid var(--panel-border); border-radius:6px; color:var(--ink-dim); }
+#mapView .layer-line.layer-select { flex-wrap:wrap; }
+#mapView .layer-line.layer-select select { width:100%; padding:5px 7px; background:var(--bg); color:var(--ink); border:1px solid var(--panel-border); border-radius:5px; }
 #mapView .filter-pair { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
 #mapView #resourceResults { padding:0 10px; }
 #mapView .nature-intro { margin-top:0; }
@@ -337,10 +340,6 @@
 #mapView .nature-top button { text-align:left; font-size:11px; padding:5px 7px; }
 #mapView .nature-progress { flex:none; margin:2px 0 0; padding:5px 7px; border-top:1px solid var(--panel-border); color:var(--ink-dim); font-size:10px; }
 @media(max-width:360px) { #mapView .nature-controls { grid-template-columns:1fr; } }
-#mapView .scan-failure-row { opacity:.75; order:9; }
-#mapView .scan-failure-row .type-glyph { width:16px; height:16px; }
-#mapView .scan-failure-row .name { font-size:.72rem; }
-#mapView .scan-failure-row.active { border-color:var(--panel-border); }
 #mapView .toolbar { top:64px; max-width:calc(100% - 24px); }
 #mapView .toolbar .hint { display:none; }
 #mapView .toolbar input { min-width:0; width:180px; }
@@ -481,7 +480,7 @@
       <p class="muted" data-mt="localPlan">Планы сохраняются в этом браузере. Экспортируйте JSON для резервной копии. Линейка показывает геометрическое расстояние, не путь в игре.</p>
       <div id="planObjects"></div>
     </section>
-<section id="resourcePanel" class="side-panel"><div class="legend-search">
+<section id="resourcePanel" class="side-panel"><label class="check map-free-filter"><input type="checkbox" autocomplete="off" id="layerFreeOnly"><span data-i18n="layerFreeOnly">Показывать только свободные месторождения</span></label><div class="legend-search">
       <input type="text" id="legendSearch" data-i18n-placeholder="searchTerrain" placeholder="Поиск типа местности…">
     </div>
     <div class="legend-scroll" id="legend"></div>
@@ -533,17 +532,16 @@
       <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerBoundaries" checked><span data-i18n="layerBoundaries">Границы владений</span></label>
       <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerSettlements" checked><span data-i18n="layerSettlements">Маркеры поселений</span></label>
       <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerResources" checked><span data-i18n="layerResources">Значки месторождений</span></label>
-      <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerLandStars"><span data-i18n="layerLandStars">Звёзды на земле</span></label>
-      <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerLandNums"><span data-i18n="layerLandNums">Числа на земле</span></label>
+      <label class="layer-line layer-select"><span data-i18n="layerLandQuality">Качество земли</span><select id="layerLandQuality"><option value="off" data-i18n="qualityOff">Выключено</option><option value="stars" data-i18n="qualityStars">Звёзды</option><option value="numbers" data-i18n="qualityNumbers">Проценты</option><option value="both" data-i18n="qualityBoth">Звёзды и проценты</option></select></label>
       <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerStars" checked><span data-i18n="layerStars">Качество минералов (звёзды)</span></label>
       <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerPlantQuality"><span data-i18n="layerPlantQuality">Качество растений</span></label>
       <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerPlantHoverQuality"><span data-i18n="layerPlantHoverQuality">Качество растений при наведении</span></label>
       <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerRoads" checked><span data-i18n="layerRoads">Дороги</span></label>
       <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerGrid" checked><span data-i18n="layerGrid">Сетка клеток</span></label>
-      <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerNature" checked><span data-i18n="layerNature">Деревья и горы</span></label>
+      <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerPlants" checked><span data-i18n="layerPlants">Растительность</span></label>
+      <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerMountains" checked><span data-i18n="layerMountains">Горы</span></label>
       <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerBuildings" checked><span data-i18n="layerBuildings">Значки зданий</span></label>
       <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerWalls" checked><span data-i18n="layerWalls">Стены и укрепления</span></label>
-      <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerFreeOnly"><span data-i18n="layerFreeOnly">Только свободные клетки</span></label>
       <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerFailures"><span data-i18n="layerFailures">Ошибки проверки</span></label>
       <div class="layer-owner-title" data-i18n="layersOwners">Владения</div>
       <div class="layer-owner-list" id="layerOwnerList"></div>
@@ -570,9 +568,9 @@ const I18N = {
     coordinatesLabel: "Координаты", terrainLabel: "Местность", zoomLabel: "Масштаб",
     layersTitle: "Слои карты",
     layerBoundaries: "Границы владений", layerSettlements: "Маркеры поселений",
-    layerResources: "Значки месторождений", layerBuildings: "Значки зданий", layerNature: "Деревья и горы", layerGrid: "Сетка клеток", layerRoads: "Дороги", legHouse: "Дом", legField: "Поле, сад", legBarn: "Амбар, хлев", legSchool: "Школа", legTemple: "Храм", legMarket: "Рынок", legWorkshop: "Мастерская", legQuarry: "Карьер", legMine: "Рудник", legWell: "Колодец", legRoad: "Дорога", legConifer: "Хвойное", legBroad: "Лиственное", legFruit: "Плодовое", legMountain: "Гора", legPlateau: "Плато", legendTitle: "Легенда значков", legCastle: "Замок", layerWalls: "Стены и укрепления",
+    layerResources: "Значки месторождений", layerBuildings: "Значки зданий", layerPlants: "Растительность", layerMountains: "Горы", layerGrid: "Сетка клеток", layerRoads: "Дороги", legHouse: "Дом", legField: "Поле, сад", legBarn: "Амбар, хлев", legSchool: "Школа", legTemple: "Храм", legMarket: "Рынок", legWorkshop: "Мастерская", legQuarry: "Карьер", legMine: "Рудник", legWell: "Колодец", legRoad: "Дорога", legConifer: "Хвойное", legBroad: "Лиственное", legFruit: "Плодовое", legMountain: "Гора", legPlateau: "Плато", legendTitle: "Легенда значков", legCastle: "Замок", layerWalls: "Стены и укрепления",
     layerFailures: "Ошибки проверки", layersOwners: "Владения",
-    layerFreeOnly: "Только свободные клетки",
+    layerFreeOnly: "Показывать только свободные месторождения",
     snapshotFrom: "Снимок от", updatedPrefix: "обновлено", justNow: "только что",
     minAgo: (n) => `${n} мин назад`, hAgo: (n) => `${n} ч назад`,
     views: (n) => `${n} просмотров`,
@@ -581,7 +579,7 @@ const I18N = {
     statScanTime: "Континент пройден за",
     depositsGroup: "Ценные месторождения", terrainGroup: "Типы местности",
     failedToCheck: "Не удалось проверить",
-    best: (q) => `лучшее ${q}%`, topN: (n) => ` · топ-${n}`, layerStars: "Качество минералов (звёзды)", layerPlantQuality: "Качество растений", layerPlantHoverQuality: "Качество растений при наведении", treeQuality: (q) => `Качество растения: ${q}`, noData: "Нет данных", layerLandStars: "Звёзды на земле", layerLandNums: "Числа на земле", freeLabel: (n) => `свободно: ${n}`,
+    best: (q) => `лучшее ${q}%`, topN: (n) => ` · топ-${n}`, layerStars: "Качество минералов (звёзды)", layerPlantQuality: "Качество растений", layerPlantHoverQuality: "Качество растений при наведении", treeQuality: (q) => `Качество растения: ${q}`, noData: "Нет данных", layerLandQuality: "Качество земли", qualityOff: "Выключено", qualityStars: "Звёзды", qualityNumbers: "Проценты", qualityBoth: "Звёзды и проценты", freeLabel: (n) => `свободно: ${n}`,
     badgeFree: "свободно", badgeOccupied: "занято", badgeOwn: "наш домен",
     tQuality: (q) => `${q}% качество`, cellsCount: (n) => `${n} клеток`,
   },
@@ -595,9 +593,9 @@ const I18N = {
     coordinatesLabel: "Coordinates", terrainLabel: "Terrain", zoomLabel: "Zoom",
     layersTitle: "Map layers",
     layerBoundaries: "Domain borders", layerSettlements: "Settlement markers",
-    layerResources: "Deposit markers", layerBuildings: "Building icons", layerNature: "Trees & mountains", layerGrid: "Cell grid", layerRoads: "Roads", legHouse: "House", legField: "Field, orchard", legBarn: "Barn, stable", legSchool: "School", legTemple: "Temple", legMarket: "Market", legWorkshop: "Workshop", legQuarry: "Quarry", legMine: "Mine", legWell: "Well", legRoad: "Road", legConifer: "Conifer", legBroad: "Broadleaf", legFruit: "Fruit tree", legMountain: "Mountain", legPlateau: "Plateau", legendTitle: "Icon legend", legCastle: "Castle", layerWalls: "Walls & fortifications",
+    layerResources: "Deposit markers", layerBuildings: "Building icons", layerPlants: "Vegetation", layerMountains: "Mountains", layerGrid: "Cell grid", layerRoads: "Roads", legHouse: "House", legField: "Field, orchard", legBarn: "Barn, stable", legSchool: "School", legTemple: "Temple", legMarket: "Market", legWorkshop: "Workshop", legQuarry: "Quarry", legMine: "Mine", legWell: "Well", legRoad: "Road", legConifer: "Conifer", legBroad: "Broadleaf", legFruit: "Fruit tree", legMountain: "Mountain", legPlateau: "Plateau", legendTitle: "Icon legend", legCastle: "Castle", layerWalls: "Walls & fortifications",
     layerFailures: "Scan failures", layersOwners: "Domains",
-    layerFreeOnly: "Free cells only",
+    layerFreeOnly: "Show free deposits only",
     snapshotFrom: "Snapshot from", updatedPrefix: "updated", justNow: "just now",
     minAgo: (n) => `${n} min ago`, hAgo: (n) => `${n} h ago`,
     views: (n) => `${n} views`,
@@ -606,7 +604,7 @@ const I18N = {
     statScanTime: "Continent scanned in",
     depositsGroup: "Valuable deposits", terrainGroup: "Terrain types",
     failedToCheck: "Failed to check",
-    best: (q) => `best ${q}%`, topN: (n) => ` · top-${n}`, layerStars: "Quality of minerals (stars)", layerPlantQuality: "Plant quality", layerPlantHoverQuality: "Plant quality on hover", treeQuality: (q) => `Plant quality: ${q}`, noData: "No data", layerLandStars: "Stars on land", layerLandNums: "Numbers on land", freeLabel: (n) => `free: ${n}`,
+    best: (q) => `best ${q}%`, topN: (n) => ` · top-${n}`, layerStars: "Quality of minerals (stars)", layerPlantQuality: "Plant quality", layerPlantHoverQuality: "Plant quality on hover", treeQuality: (q) => `Plant quality: ${q}`, noData: "No data", layerLandQuality: "Land quality", qualityOff: "Off", qualityStars: "Stars", qualityNumbers: "Percentages", qualityBoth: "Stars and percentages", freeLabel: (n) => `free: ${n}`,
     badgeFree: "free", badgeOccupied: "claimed", badgeOwn: "our domain",
     tQuality: (q) => `${q}% quality`, cellsCount: (n) => `${n} cells`,
   },
@@ -1105,14 +1103,14 @@ let showSettlements = true;
 let showResourceMarkers = true;
 let showWalls = true;
 let showBuildings = true;
-let showNature = true;
+let showPlants = true;
+let showMountains = true;
 let showGrid = true;
 let showRoads = true;
 let showStars = true;
 let showPlantQuality = false;
 let showPlantHoverQuality = false;
-let showLandStars = false;
-let showLandNums = false;
+let landQualityMode = "off";
 let showFreeOnly = false; // слой: только свободные клетки (выбранного типа или все месторождения)
 let selectedOwnerKey = null; // an ownerIdx, or null — spotlight one settlement's land
 
@@ -1187,26 +1185,33 @@ function formatCoords(x, y) {
   return `${Math.abs(x)}${ew}${Math.abs(y)}${ns}`;
 }
 
-let failedRowRef = null;
 const layersCard = document.getElementById("layersCard");
 document.getElementById("layersToggle").addEventListener("click", () => {
   layersCard.hidden = !layersCard.hidden;
 });
-const SAVED_LAYERS = ["layerGrid", "layerRoads", "layerStars", "layerPlantQuality", "layerPlantHoverQuality", "layerLandStars", "layerLandNums", "layerBuildings", "layerNature"];
+try {
+  const oldNature = localStorage.getItem("lolsite.layer.layerNature");
+  if (oldNature !== null) for (const id of ["layerPlants", "layerMountains"]) if (localStorage.getItem("lolsite.layer." + id) === null) localStorage.setItem("lolsite.layer." + id, oldNature);
+  if (localStorage.getItem("lolsite.layer.landQualityMode") === null) {
+    const oldStars = localStorage.getItem("lolsite.layer.layerLandStars") === "1";
+    const oldNums = localStorage.getItem("lolsite.layer.layerLandNums") === "1";
+    localStorage.setItem("lolsite.layer.landQualityMode", oldStars && oldNums ? "both" : oldStars ? "stars" : oldNums ? "numbers" : "off");
+  }
+} catch (e) {}
+const SAVED_LAYERS = ["layerGrid", "layerRoads", "layerStars", "layerPlantQuality", "layerPlantHoverQuality", "layerBuildings", "layerPlants", "layerMountains"];
 for (const [id, setter] of [
   ["layerBoundaries", v => showBoundaries = v],
   ["layerSettlements", v => showSettlements = v],
   ["layerResources", v => showResourceMarkers = v],
   ["layerWalls", v => showWalls = v],
   ["layerBuildings", v => showBuildings = v],
-  ["layerNature", v => showNature = v],
+  ["layerPlants", v => showPlants = v],
+  ["layerMountains", v => showMountains = v],
   ["layerGrid", v => showGrid = v],
   ["layerRoads", v => showRoads = v],
   ["layerStars", v => showStars = v],
   ["layerPlantQuality", v => showPlantQuality = v],
   ["layerPlantHoverQuality", v => showPlantHoverQuality = v],
-  ["layerLandStars", v => showLandStars = v],
-  ["layerLandNums", v => showLandNums = v],
   ["layerFailures", v => showFailed = v],
   ["layerFreeOnly", v => { showFreeOnly = v; cachedResourceMarkers = null; cachedFreeDeposits = null; }],
 ]) {
@@ -1218,10 +1223,17 @@ for (const [id, setter] of [
   el.addEventListener("change", e => {
     setter(e.target.checked);
     if (SAVED_LAYERS.includes(id)) { try { localStorage.setItem(saveKey, e.target.checked ? "1" : "0"); } catch (err) {} }
-    if (id === "layerFailures" && failedRowRef) failedRowRef.classList.toggle("active", showFailed);
     render();
   });
 }
+const landQualityEl = document.getElementById("layerLandQuality");
+try { landQualityEl.value = localStorage.getItem("lolsite.layer.landQualityMode") || "off"; } catch (e) {}
+landQualityMode = landQualityEl.value;
+landQualityEl.addEventListener("change", () => {
+  landQualityMode = landQualityEl.value;
+  try { localStorage.setItem("lolsite.layer.landQualityMode", landQualityMode); } catch (e) {}
+  render();
+});
 function statusBadge(status) {
   if (status === 1 || status === 2) return `<span class="m-badge m-badge-occupied">${t("badgeOccupied")}</span>`;
   return `<span class="m-badge m-badge-free">${t("badgeFree")}</span>`;
@@ -1257,28 +1269,6 @@ function makeCellListToggle(triggerEl, panelEl, rows) {
 
 function renderLegendList() {
   legendEl.innerHTML = "";
-
-  const failedRow = document.createElement("div");
-  failedRow.className = "legend-row" + (showFailed ? " active" : "");
-  failedRow.innerHTML = `
-    <div class="legend-row-main" tabindex="0">
-      <span class="type-glyph">${glyphSvg("warning", "#ff3b3b")}</span>
-      <span class="name">${t("failedToCheck")}</span>
-      <span class="count">${fmtNum(MAP_DATA.failed.length)}</span>
-    </div>
-  `;
-  const failedMain = failedRow.querySelector(".legend-row-main");
-  failedMain.addEventListener("click", () => {
-    showFailed = !showFailed;
-    document.getElementById("layerFailures").checked = showFailed;
-    failedRow.classList.toggle("active", showFailed);
-    render();
-  });
-  failedMain.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); failedMain.click(); }
-  });
-  failedRow.classList.add("scan-failure-row");
-  failedRowRef = failedRow;
 
   MAP_DATA.types.forEach((mt, i) => {
     // Заголовок-разделитель перед первой строкой каждой из двух групп —
@@ -1336,7 +1326,6 @@ function renderLegendList() {
 // пересборка (renderLegendList) нужна только при смене языка, где имена
 // типов и так меняются целиком.
 function updateLegendActive() {
-  failedRowRef.classList.toggle("active", showFailed);
   MAP_DATA.types.forEach((mt, i) => mt._row.classList.toggle("active", i === selected));
 }
 function applyLegendFilter() {
@@ -1860,7 +1849,9 @@ function drawPlantQuality(viewW, viewH, sz, dim) {
 }
 // Звёзды качества на обычной земле (луга, равнины, скалы и т.д.): мелкие, у нижнего края клетки; видны от 8 px/клетку.
 function drawLandStars(viewW, viewH, sz, dim) {
-  if ((!showLandStars && !showLandNums) || sz < 8 || selectedOwnerKey !== null) return;
+  if (landQualityMode === "off" || sz < 8 || selectedOwnerKey !== null) return;
+  const showLandStars = landQualityMode === "stars" || landQualityMode === "both";
+  const showLandNums = landQualityMode === "numbers" || landQualityMode === "both";
   const [wx0, wy0] = screenToWorld(0, 0), [wx1, wy1] = screenToWorld(viewW, viewH);
   const x0 = Math.floor(wx0) - 1, x1 = Math.ceil(wx1) + 1, y0 = Math.floor(wy0) - 1, y1 = Math.ceil(wy1) + 1;
   if ((x1 - x0) * (y1 - y0) > 40000) return;
@@ -1986,7 +1977,7 @@ function drawBuildingIcon(c, cat, t, x, y, s) {
     c.fillStyle = "#3a2a1a"; c.fillRect(19*u,26*u,6*u,10*u);
   }
   else if (cat === "xroad") { roadV(); roadH(); }
-  else if (cat === "house") { if (t === "crossing" || t === "xcross") { roadV(); roadH(); } house(t === "farm" ? "#6e9646" : "#96463a"); }
+  else if (cat === "house") { house(t === "farm" ? "#6e9646" : "#96463a"); }
   else if (cat === "field") {
     c.fillStyle = t === "meadow" ? "#8fbf5a" : t === "linen" ? "#9fb7d9" : t === "vgarden" ? "#7aa34a" : "#e4c85a";
     c.strokeStyle = "#5a4614"; c.fillRect(4*u,4*u,s-8*u,s-8*u); c.strokeRect(4*u,4*u,s-8*u,s-8*u);
@@ -2033,6 +2024,7 @@ function drawBuildings(viewW, viewH, size, dim) {
   ctx.save(); ctx.globalAlpha = dim ? .35 : 1;
   for (const [wx, wy, t] of list) {
     const cat = bldCat(t); if (!cat) continue;
+    if (cat === "road" || cat === "street" || cat === "xroad") continue;
     const [sx, sy] = worldToScreen(wx, wy);
     if (sx < -size || sy < -size || sx > viewW + size || sy > viewH + size) continue;
     drawBuildingIcon(ctx, cat, t, sx, sy, size);
@@ -2102,10 +2094,10 @@ function drawTree(c, sp, x, y, s) {
   c.restore();
 }
 function drawNatureIcons(viewW, viewH, size, dim) {
-  if (!showNature || size < 8 || selectedOwnerKey !== null) return;
+  if ((!showPlants && !showMountains) || size < 8 || selectedOwnerKey !== null) return;
   ctx.save(); ctx.globalAlpha = mapTools.plant !== null ? .95 : (dim ? .3 : .95);
   const pad = size;
-  if (mapTools.plant === null) for (const code in MOUNTAIN_STYLE) {
+  if (showMountains && mapTools.plant === null) for (const code in MOUNTAIN_STYLE) {
     const ti = MAP_DATA.types.findIndex(t => t.code === code); if (ti < 0) continue;
     for (const p of pointsByType[ti]) {
       const [sx, sy] = worldToScreen(p[0], p[1]);
@@ -2114,7 +2106,7 @@ function drawNatureIcons(viewW, viewH, size, dim) {
     }
   }
   const tr = TREES[ALL_DATA.continents[currentContinentIdx].key];
-  if (tr) for (const sp in tr) {
+  if (showPlants && tr) for (const sp in tr) {
     if (mapTools.plant !== null && sp !== mapTools.plant) continue;
     const a = tr[sp];
     for (let i = 0; i < a.length; i += 2) {
@@ -2855,7 +2847,7 @@ const mapTools = (() => {
       details.addEventListener('toggle',()=>{if(details.open){const list=details.querySelector('[data-nature-list]');if(Number(list.dataset.limit)===0)fillNatureCells(list);}});
       details.querySelector('summary').addEventListener('click',()=>{
         state.plant=state.plant===details.dataset.plantCode?null:details.dataset.plantCode;
-        selected=null;selectedOwnerKey=null;showNature=true;$('layerNature').checked=true;
+        selected=null;selectedOwnerKey=null;showPlants=true;$('layerPlants').checked=true;
         $('natureResults').querySelectorAll('.nature-row').forEach(row=>row.classList.toggle('active',row.dataset.plantCode===state.plant));
         render();
       });
