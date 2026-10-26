@@ -327,7 +327,9 @@
 #mapView #natureCount { flex:none; margin:2px 0 6px; }
 #mapView .nature-results { min-height:0; overflow-y:auto; overscroll-behavior:contain; display:flex; flex-direction:column; gap:3px; padding-right:3px; }
 #mapView .nature-row { border:1px solid transparent; border-radius:6px; }
+#mapView .nature-row.active { border-color:var(--accent); background:rgba(201,138,62,.13); }
 #mapView .nature-row[open] { border-color:var(--panel-border); background:rgba(201,138,62,.06); }
+#mapView .nature-row.active[open] { border-color:var(--accent); background:rgba(201,138,62,.13); }
 #mapView .nature-row summary { list-style:none; cursor:pointer; }
 #mapView .nature-row summary::-webkit-details-marker { display:none; }
 #mapView .nature-row .type-glyph canvas { width:36px; height:36px; display:block; }
@@ -534,6 +536,7 @@
       <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerLandStars"><span data-i18n="layerLandStars">Звёзды на земле</span></label>
       <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerLandNums"><span data-i18n="layerLandNums">Числа на земле</span></label>
       <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerStars" checked><span data-i18n="layerStars">Качество минералов (звёзды)</span></label>
+      <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerPlantQuality"><span data-i18n="layerPlantQuality">Качество растений</span></label>
       <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerRoads" checked><span data-i18n="layerRoads">Дороги</span></label>
       <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerGrid" checked><span data-i18n="layerGrid">Сетка клеток</span></label>
       <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerNature" checked><span data-i18n="layerNature">Деревья и горы</span></label>
@@ -577,7 +580,7 @@ const I18N = {
     statScanTime: "Континент пройден за",
     depositsGroup: "Ценные месторождения", terrainGroup: "Типы местности",
     failedToCheck: "Не удалось проверить",
-    best: (q) => `лучшее ${q}%`, topN: (n) => ` · топ-${n}`, layerStars: "Качество минералов (звёзды)", layerLandStars: "Звёзды на земле", layerLandNums: "Числа на земле", freeLabel: (n) => `свободно: ${n}`,
+    best: (q) => `лучшее ${q}%`, topN: (n) => ` · топ-${n}`, layerStars: "Качество минералов (звёзды)", layerPlantQuality: "Качество растений", layerLandStars: "Звёзды на земле", layerLandNums: "Числа на земле", freeLabel: (n) => `свободно: ${n}`,
     badgeFree: "свободно", badgeOccupied: "занято", badgeOwn: "наш домен",
     tQuality: (q) => `${q}% качество`, cellsCount: (n) => `${n} клеток`,
   },
@@ -602,7 +605,7 @@ const I18N = {
     statScanTime: "Continent scanned in",
     depositsGroup: "Valuable deposits", terrainGroup: "Terrain types",
     failedToCheck: "Failed to check",
-    best: (q) => `best ${q}%`, topN: (n) => ` · top-${n}`, layerStars: "Quality of minerals (stars)", layerLandStars: "Stars on land", layerLandNums: "Numbers on land", freeLabel: (n) => `free: ${n}`,
+    best: (q) => `best ${q}%`, topN: (n) => ` · top-${n}`, layerStars: "Quality of minerals (stars)", layerPlantQuality: "Plant quality", layerLandStars: "Stars on land", layerLandNums: "Numbers on land", freeLabel: (n) => `free: ${n}`,
     badgeFree: "free", badgeOccupied: "claimed", badgeOwn: "our domain",
     tQuality: (q) => `${q}% quality`, cellsCount: (n) => `${n} cells`,
   },
@@ -1105,6 +1108,7 @@ let showNature = true;
 let showGrid = true;
 let showRoads = true;
 let showStars = true;
+let showPlantQuality = false;
 let showLandStars = false;
 let showLandNums = false;
 let showFreeOnly = false; // слой: только свободные клетки (выбранного типа или все месторождения)
@@ -1186,7 +1190,7 @@ const layersCard = document.getElementById("layersCard");
 document.getElementById("layersToggle").addEventListener("click", () => {
   layersCard.hidden = !layersCard.hidden;
 });
-const SAVED_LAYERS = ["layerGrid", "layerRoads", "layerStars", "layerLandStars", "layerLandNums", "layerBuildings", "layerNature"];
+const SAVED_LAYERS = ["layerGrid", "layerRoads", "layerStars", "layerPlantQuality", "layerLandStars", "layerLandNums", "layerBuildings", "layerNature"];
 for (const [id, setter] of [
   ["layerBoundaries", v => showBoundaries = v],
   ["layerSettlements", v => showSettlements = v],
@@ -1197,6 +1201,7 @@ for (const [id, setter] of [
   ["layerGrid", v => showGrid = v],
   ["layerRoads", v => showRoads = v],
   ["layerStars", v => showStars = v],
+  ["layerPlantQuality", v => showPlantQuality = v],
   ["layerLandStars", v => showLandStars = v],
   ["layerLandNums", v => showLandNums = v],
   ["layerFailures", v => showFailed = v],
@@ -1807,6 +1812,37 @@ function drawQualityStars(viewW, viewH, sz, dim) {
   });
   ctx.restore();
 }
+// Отдельный слой качества растительности из plants.json. Зелёная шкала
+// расположена у нижнего края клетки, чтобы не смешиваться с жёлтыми
+// звёздами месторождений у верхнего края.
+function drawPlantQuality(viewW, viewH, sz, dim) {
+  if (!showPlantQuality || sz < 8 || selectedOwnerKey !== null) return;
+  const plants = PLANTS[ALL_DATA.continents[currentContinentIdx].key];
+  if (!plants) return;
+  const r = Math.max(2.2, Math.min(sz * 0.085, 7)), step = r * 2.05, pad = sz;
+  ctx.save(); ctx.lineWidth = Math.max(1, r * 0.3); ctx.lineJoin = "round";
+  for (const species in plants) {
+    if (mapTools.plant !== null && species !== mapTools.plant) continue;
+    const a = plants[species];
+    for (let i = 0; i < a.length; i += 4) {
+      const x = a[i], y = a[i + 1], quality = a[i + 2], status = a[i + 3];
+      const [sx, sy] = worldToScreen(x, y);
+      if (sx < -pad || sy < -pad || sx > viewW + pad || sy > viewH + pad) continue;
+      const h = halvesFor(quality), full = h >> 1, n = full + (h & 1);
+      const x0 = sx + sz / 2 - (n - 1) * step / 2, cy = sy + sz - r * 1.5;
+      ctx.globalAlpha = (dim ? .5 : 1) * (status === 0 ? 1 : .58);
+      if (sz >= 14) drawQualityNumber(sx + sz / 2, cy - r * 1.8 - Math.max(8, sz * 0.15) * 0.45, quality, sz);
+      for (let k = 0; k < n; k++) {
+        const cx = x0 + k * step, half = k === full;
+        ctx.beginPath(); starPath(ctx, cx, cy, r);
+        ctx.fillStyle = half ? "rgba(13,38,24,.6)" : "#72dc83"; ctx.fill();
+        if (half) { ctx.save(); ctx.beginPath(); ctx.rect(cx - r, cy - r, r, r * 2); ctx.clip(); ctx.beginPath(); starPath(ctx, cx, cy, r); ctx.fillStyle = "#72dc83"; ctx.fill(); ctx.restore(); }
+        ctx.strokeStyle = "rgba(8,32,17,.95)"; ctx.beginPath(); starPath(ctx, cx, cy, r); ctx.stroke();
+      }
+    }
+  }
+  ctx.restore();
+}
 // Звёзды качества на обычной земле (луга, равнины, скалы и т.д.): мелкие, у нижнего края клетки; видны от 8 px/клетку.
 function drawLandStars(viewW, viewH, sz, dim) {
   if ((!showLandStars && !showLandNums) || sz < 8 || selectedOwnerKey !== null) return;
@@ -2052,9 +2088,9 @@ function drawTree(c, sp, x, y, s) {
 }
 function drawNatureIcons(viewW, viewH, size, dim) {
   if (!showNature || size < 8 || selectedOwnerKey !== null) return;
-  ctx.save(); ctx.globalAlpha = dim ? .3 : .95;
+  ctx.save(); ctx.globalAlpha = mapTools.plant !== null ? .95 : (dim ? .3 : .95);
   const pad = size;
-  for (const code in MOUNTAIN_STYLE) {
+  if (mapTools.plant === null) for (const code in MOUNTAIN_STYLE) {
     const ti = MAP_DATA.types.findIndex(t => t.code === code); if (ti < 0) continue;
     for (const p of pointsByType[ti]) {
       const [sx, sy] = worldToScreen(p[0], p[1]);
@@ -2064,6 +2100,7 @@ function drawNatureIcons(viewW, viewH, size, dim) {
   }
   const tr = TREES[ALL_DATA.continents[currentContinentIdx].key];
   if (tr) for (const sp in tr) {
+    if (mapTools.plant !== null && sp !== mapTools.plant) continue;
     const a = tr[sp];
     for (let i = 0; i < a.length; i += 2) {
       const [sx, sy] = worldToScreen(a[i], a[i + 1]);
@@ -2125,12 +2162,20 @@ function render() {
 
   // When a type or owner is selected, dim the whole image and redraw just
   // the matching subset on top at full brightness.
-  const dim = (selected !== null && !(mapTools.mode === "resources" && MAP_DATA.types[selected].mineral)) || selectedOwnerKey !== null || (showFreeOnly && mapTools.mode !== "resources");
+  const dim = (selected !== null && !(mapTools.mode === "resources" && MAP_DATA.types[selected].mineral)) || mapTools.plant !== null || selectedOwnerKey !== null || (showFreeOnly && mapTools.mode !== "resources");
   if (dim) {
     ctx.fillStyle = "rgba(11, 15, 20, 0.84)";
     ctx.fillRect(0, 0, viewW, viewH);
     const s = sz + 2;
     let highlightSet = selected !== null ? pointsByType[selected] : (ownedByOwner.get(selectedOwnerKey) || []);
+    if (mapTools.plant !== null) {
+      highlightSet = [];
+      const a = (PLANTS[ALL_DATA.continents[currentContinentIdx].key] || {})[mapTools.plant] || [];
+      for (let i = 0; i < a.length; i += 4) {
+        const p = pointByCoord.get(a[i] + "," + a[i + 1]);
+        if (p) highlightSet.push(p);
+      }
+    }
     if (showFreeOnly && selectedOwnerKey === null) highlightSet = selected !== null ? freeOf(pointsByType[selected]) : freeDeposits();
 
     // When a single mineral/terrain TYPE is selected (not an owner —
@@ -2138,7 +2183,7 @@ function render() {
     // cheap two-pass halo works: a bright ring drawn slightly larger
     // underneath, then the real color on top. Adjacent cells' halos merge
     // into one outline around a whole deposit cluster.
-    if ((selected !== null || showFreeOnly) && selectedOwnerKey === null && highlightSet.length) {
+    if ((selected !== null || mapTools.plant !== null || showFreeOnly) && selectedOwnerKey === null && highlightSet.length) {
       const halo = 2;
       ctx.fillStyle = "#e9e3d2";
       for (const p of highlightSet) {
@@ -2179,6 +2224,7 @@ function render() {
   drawNatureIcons(viewW, viewH, sz, dim);
   drawBuildings(viewW, viewH, sz, dim);
   drawQualityStars(viewW, viewH, sz, dim);
+  drawPlantQuality(viewW, viewH, sz, dim);
   drawLandStars(viewW, viewH, sz, dim);
 
   mapTools.drawSettlements(viewW, viewH, sz, dim);
@@ -2610,7 +2656,7 @@ const mapTools = (() => {
   function write(key, data) { try { localStorage.setItem(key, JSON.stringify(data)); return true; } catch { notice(tr('Не удалось сохранить в браузере. Экспортируйте план JSON.','Browser storage unavailable. Export your plan as JSON.')); return false; } }
   let noticeTimer, viewTimer, restoring=false;
   function notice(text) { $('mapNotice').textContent=text; $('mapNotice').hidden=false; clearTimeout(noticeTimer); noticeTimer=setTimeout(()=>$('mapNotice').hidden=true,5000); }
-  const state = {ready:false, mode:'terrain', tool:'pan', panel:'resource', resourceFilterActive:false};
+  const state = {ready:false, mode:'terrain', tool:'pan', panel:'resource', resourceFilterActive:false, plant:null};
   const modeLayers=new Map();
   let resourceDrawingCache=null;
   let ownerRows=[], ownerLimit=80, resourceLimit=80, results=[], resultSet=new Set(), filter=null;
@@ -2784,7 +2830,7 @@ const mapTools = (() => {
     }).filter(r=>!query||r.search.includes(query)).sort((a,b)=>sort==='name'?a.name.localeCompare(b.name,currentLang):sort==='count'?b.cells.length-a.cells.length||b.best-a.best:b.best-a.best||b.cells.length-a.cells.length||a.name.localeCompare(b.name,currentLang));
     natureRowsByCode=new Map(rows.map(r=>[r.code,r]));
     $('natureCount').textContent=tr('Найдено видов: ','Plant types found: ')+fmtNum(rows.length);
-    $('natureResults').innerHTML=rows.map(r=>`<details class="nature-row">
+    $('natureResults').innerHTML=rows.map(r=>`<details class="nature-row${state.plant===r.code?' active':''}" data-plant-code="${esc(r.code)}">
       <summary class="legend-row-main">
         <span class="type-glyph"><canvas width="72" height="72" data-plant-icon="${esc(r.code)}"></canvas></span>
         <div class="legend-text"><div class="legend-name">${esc(r.name)}</div><div class="legend-best">${tr('лучшее','best')} ${r.best}% · ${tr('свободно','free')} ${fmtNum(r.free)}</div></div>
@@ -2792,7 +2838,15 @@ const mapTools = (() => {
       </summary>
       <div class="nature-top" data-nature-list="${esc(r.code)}" data-limit="0"></div>
     </details>`).join('') || `<p class="muted">${tr('Нет данных о растительности.','No plant data available.')}</p>`;
-    $('natureResults').querySelectorAll('.nature-row').forEach(details=>details.addEventListener('toggle',()=>{if(details.open){const list=details.querySelector('[data-nature-list]');if(Number(list.dataset.limit)===0)fillNatureCells(list);}}));
+    $('natureResults').querySelectorAll('.nature-row').forEach(details=>{
+      details.addEventListener('toggle',()=>{if(details.open){const list=details.querySelector('[data-nature-list]');if(Number(list.dataset.limit)===0)fillNatureCells(list);}});
+      details.querySelector('summary').addEventListener('click',()=>{
+        state.plant=state.plant===details.dataset.plantCode?null:details.dataset.plantCode;
+        selected=null;selectedOwnerKey=null;showNature=true;$('layerNature').checked=true;
+        $('natureResults').querySelectorAll('.nature-row').forEach(row=>row.classList.toggle('active',row.dataset.plantCode===state.plant));
+        render();
+      });
+    });
     $('natureResults').querySelectorAll('[data-nature-list]').forEach(list=>list.addEventListener('scroll',()=>{if(list.scrollTop+list.clientHeight>=list.scrollHeight-80)fillNatureCells(list);},{passive:true}));
     requestAnimationFrame(()=>$('natureResults').querySelectorAll('[data-plant-icon]').forEach(c=>{const g=c.getContext('2d');g.scale(2,2);drawTree(g,c.dataset.plantIcon,0,0,36);}));
   }
@@ -3127,7 +3181,7 @@ const mapTools = (() => {
   }
   function onData() {
     heraldNodes.forEach(img=>img.remove());heraldNodes.clear();
-    state.ready=false;state.mode='terrain';modeLayers.clear();resourceDrawingCache=null;document.querySelectorAll('[data-mode]').forEach(b=>{b.classList.toggle('active',b.dataset.mode==='terrain');b.setAttribute('aria-pressed',String(b.dataset.mode==='terrain'));});miniBackground=null;results=[];resultSet.clear();filter=null;state.resourceFilterActive=false;picked=null;selectedOwnerKey=null;reference=MAP_DATA.domain;draft=[];history=[];future=[];overlayImage=null;lastViewport='';
+    state.ready=false;state.mode='terrain';state.plant=null;modeLayers.clear();resourceDrawingCache=null;document.querySelectorAll('[data-mode]').forEach(b=>{b.classList.toggle('active',b.dataset.mode==='terrain');b.setAttribute('aria-pressed',String(b.dataset.mode==='terrain'));});miniBackground=null;results=[];resultSet.clear();filter=null;state.resourceFilterActive=false;picked=null;selectedOwnerKey=null;reference=MAP_DATA.domain;draft=[];history=[];future=[];overlayImage=null;lastViewport='';
     favorites=read(key('favorites'),[]);if(!Array.isArray(favorites))favorites=[];
     places=read(key('places'),[]);if(!Array.isArray(places))places=[];
     places=places.filter(p=>p&&typeof p.name==='string'&&Number.isFinite(p.x)&&Number.isFinite(p.y));
@@ -3177,7 +3231,7 @@ const mapTools = (() => {
   $('resetBtn').addEventListener('click',()=>{
     picked=null;$('objectCard').hidden=true;
     modeLayers.clear();
-    state.resourceFilterActive=false;filter=null;results=[];resultSet.clear();
+    state.resourceFilterActive=false;state.plant=null;filter=null;results=[];resultSet.clear();
     [showBoundaries,showSettlements,showWalls]=[true,true,true];
     const free=$('layerFreeOnly');
     if(free&&free.checked){free.checked=false;free.dispatchEvent(new Event('change',{bubbles:true}));}
@@ -3185,6 +3239,7 @@ const mapTools = (() => {
   });
   // Выбор типа в легенде: фильтр ресурсов сбрасывается, а нерудный тип в режиме «Ресурсы» не должен давать пустую карту.
   $('legend').addEventListener('click',()=>{
+    if(selected!==null)state.plant=null;
     if(selected!==null&&state.resourceFilterActive)clearFilter();
     if(selected!==null&&state.mode==='resources'&&!MAP_DATA.types[selected]?.mineral)setMode('terrain');
     updateLegendActive();
