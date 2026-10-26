@@ -320,7 +320,12 @@
 #mapView .filter-pair { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
 #mapView #resourceResults { padding:0 10px; }
 #mapView .nature-intro { margin-top:0; }
-#mapView .nature-results { display:flex; flex-direction:column; gap:3px; }
+#mapView #naturePanel { display:flex; flex-direction:column; overflow:hidden; }
+#mapView #naturePanel[hidden] { display:none; }
+#mapView .nature-controls { flex:none; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:8px; }
+#mapView .nature-controls label { margin:0 0 6px; }
+#mapView #natureCount { flex:none; margin:2px 0 6px; }
+#mapView .nature-results { min-height:0; overflow-y:auto; overscroll-behavior:contain; display:flex; flex-direction:column; gap:3px; padding-right:3px; }
 #mapView .nature-row { border:1px solid transparent; border-radius:6px; }
 #mapView .nature-row[open] { border-color:var(--panel-border); background:rgba(201,138,62,.06); }
 #mapView .nature-row summary { list-style:none; cursor:pointer; }
@@ -328,6 +333,7 @@
 #mapView .nature-row .type-glyph canvas { width:36px; height:36px; display:block; }
 #mapView .nature-top { display:flex; flex-direction:column; gap:3px; padding:2px 7px 7px 48px; }
 #mapView .nature-top button { text-align:left; font-size:11px; padding:5px 7px; }
+@media(max-width:360px) { #mapView .nature-controls { grid-template-columns:1fr; } }
 #mapView .scan-failure-row { opacity:.75; order:9; }
 #mapView .scan-failure-row .type-glyph { width:16px; height:16px; }
 #mapView .scan-failure-row .name { font-size:.72rem; }
@@ -422,6 +428,11 @@
     </nav>
     <section id="naturePanel" class="side-panel" hidden>
       <p class="muted nature-intro" data-mt="natureIntro">Деревья и растения: качество, свободные клетки и лучшие находки.</p>
+      <div class="nature-controls">
+        <label><span data-mt="findPlant">Найти растение</span><input id="natureSearch" type="search" autocomplete="off" placeholder="Дуб…" data-mt-placeholder="plantPlaceholder"></label>
+        <label><span data-mt="sort">Сортировка</span><select id="natureSort"><option value="quality" data-mt="byQuality">По качеству</option><option value="name" data-mt="byName">По названию</option><option value="count" data-mt="byCount">По количеству</option></select></label>
+      </div>
+      <p id="natureCount" class="muted" aria-live="polite"></p>
       <div id="natureResults" class="nature-results"></div>
     </section>
     <section id="listPanel" class="side-panel" hidden>
@@ -2551,7 +2562,7 @@ const mapTools = (() => {
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const words = {
     freshOnly:['Только новые находки перескана','Only new finds of the rescan'], copyGame:['Ссылка на игру','Game link'],
-    close:['Закрыть','Close'], resources:['Ресурсы','Resources'], nature:['Растения','Plants'], natureIntro:['Деревья и растения: качество, свободные клетки и лучшие находки.','Trees and plants: quality, free cells, and best finds.'], owners:['Владения','Domains'], plan:['План','Plan'], list:['Список','List'],
+    close:['Закрыть','Close'], resources:['Ресурсы','Resources'], nature:['Растения','Plants'], natureIntro:['Деревья и растения: качество, свободные клетки и лучшие находки.','Trees and plants: quality, free cells, and best finds.'], findPlant:['Найти растение','Find a plant'], plantPlaceholder:['Дуб…','Oak…'], byCount:['По количеству','By count'], owners:['Владения','Domains'], plan:['План','Plan'], list:['Список','List'],
     terrain:['Местность','Terrain'], mode_terrain:['Местность','Terrain'], mode_owners:['По владельцам','By owner'], mode_resources:['Минералы','Minerals'], findOwner:['Поселение или лорд','Settlement or lord'], visibleOnly:['В видимой области','In visible area'], favoritesOnly:['Только избранное','Favorites only'],
     sort:['Сортировка','Sort'], bySize:['По площади','By area'], byName:['По названию','By name'], byDistance:['По расстоянию','By distance'], byQuality:['По качеству','By quality'],
     more:['Показать ещё','Show more'], savedPlaces:['Сохранённые места','Saved places'], variant:['Вариант плана','Plan variant'],
@@ -2750,12 +2761,16 @@ const mapTools = (() => {
   }
   function renderNature() {
     const plants=window.getPlantData?window.getPlantData():{};
+    const query=$('natureSearch').value.trim().toLocaleLowerCase();
+    const sort=$('natureSort').value;
     const rows=Object.entries(plants).map(([code,a])=>{
       const cells=[];let free=0;
       for(let i=0;i<a.length;i+=4){const q=Number(a[i+2]);cells.push([a[i],a[i+1],Number.isFinite(q)?q:0,a[i+3]]);if(a[i+3]===0)free++;}
       cells.sort((x,y)=>y[2]-x[2]||x[0]-y[0]||x[1]-y[1]);
-      return {code,name:window.objTypeName(code),cells,free,best:cells[0]?.[2]??0};
-    }).sort((a,b)=>a.name.localeCompare(b.name,currentLang));
+      const names=OBJ_NAMES['tree:'+code]||[code,code];
+      return {code,name:window.objTypeName(code),search:(code+' '+names.join(' ')).toLocaleLowerCase(),cells,free,best:cells[0]?.[2]??0};
+    }).filter(r=>!query||r.search.includes(query)).sort((a,b)=>sort==='name'?a.name.localeCompare(b.name,currentLang):sort==='count'?b.cells.length-a.cells.length||b.best-a.best:b.best-a.best||b.cells.length-a.cells.length||a.name.localeCompare(b.name,currentLang));
+    $('natureCount').textContent=tr('Найдено видов: ','Plant types found: ')+fmtNum(rows.length);
     $('natureResults').innerHTML=rows.map(r=>`<details class="nature-row">
       <summary class="legend-row-main">
         <span class="type-glyph"><canvas width="72" height="72" data-plant-icon="${esc(r.code)}"></canvas></span>
@@ -3087,6 +3102,7 @@ const mapTools = (() => {
   }
   function localize() {
     document.querySelectorAll('[data-mt]').forEach(el=>el.textContent=label(el.dataset.mt));
+    document.querySelectorAll('[data-mt-placeholder]').forEach(el=>el.placeholder=label(el.dataset.mtPlaceholder));
     $('miniMap').setAttribute('aria-label',tr('Обзор континента: нажмите для перехода','Continent overview: click to navigate'));
     $('resourceType').options[0].textContent=label('allResources');for(const option of [...$('resourceType').options].slice(1)){const t=MAP_DATA.types.find(t=>t.code===option.value);if(t)option.textContent=typeName(t);}
     buildListOptions();
@@ -3109,6 +3125,7 @@ const mapTools = (() => {
     });
     $('resourceType').innerHTML=`<option value="">${label('allResources')}</option>`+MAP_DATA.types.filter(t=>t.mineral).map(t=>`<option value="${esc(t.code)}">${esc(typeName(t))}</option>`).join('');
     $('listType').value='';buildListOptions();$('listQuality').value='0';$('listFree').checked=true;$('listFresh').checked=false;listLimit=100;
+    $('natureSearch').value='';$('natureSort').value='quality';
     $('resourceOrigin').value=formatCoords(...reference);$('objectCard').hidden=true;$('resourceResults').hidden=true;
     $('ownerSearch').value='';ownerLimit=80;$('resourceQuality').value='0';$('resourceRadius').value='';$('resourceFree').checked=true;$('resourceSort').value='distance';
     state.ready=true;if(!plans.length)newPlan();else{loadOverlay();updatePlanUI();}
@@ -3137,6 +3154,7 @@ const mapTools = (() => {
   $('useMapCenter').onclick=()=>{$('resourceOrigin').value=formatCoords(...snap(center()));};
   $('listResults').onclick=e=>{const b=e.target.closest('[data-resource-cell]');if(b)pickCell(...b.dataset.resourceCell.split(',').map(Number),true);};
   $('natureResults').onclick=e=>{const b=e.target.closest('[data-resource-cell]');if(b){e.preventDefault();pickCell(...b.dataset.resourceCell.split(',').map(Number),true);}};
+  $('natureSearch').addEventListener('input',renderNature);$('natureSort').addEventListener('change',renderNature);
   $('listResults').addEventListener('click',e=>{const b=e.target.closest('[data-copy-game]'); if(!b) return; const [x,y]=b.dataset.copyGame.split(',').map(Number); copyText(gameUrl(x,y)); notice(tr('Ссылка на игру скопирована','Game link copied'));});
   for(const id of ['listType','listQuality','listFree','listFresh']) $(id).addEventListener(id==='listQuality'?'input':'change',()=>{listLimit=100;renderList();});
   $('resourceResults').onclick=e=>{const b=e.target.closest('[data-resource-cell]');if(b)pickCell(...b.dataset.resourceCell.split(',').map(Number),true);};
