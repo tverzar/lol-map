@@ -1834,8 +1834,10 @@ function drawPlantQuality(viewW, viewH, sz, dim) {
       if (sx < -pad || sy < -pad || sx > viewW + pad || sy > viewH + pad) continue;
       const h = halvesFor(quality), full = h >> 1, n = full + (h & 1);
       const x0 = sx + sz / 2 - (n - 1) * step / 2, cy = sy + sz - r * 1.5;
-      ctx.globalAlpha = (dim ? .5 : 1) * (status === 0 ? 1 : .58);
+      const baseAlpha = mapTools.plant !== null ? 1 : (dim ? .5 : 1);
+      ctx.globalAlpha = baseAlpha;
       if (sz >= 14) drawQualityNumber(sx + sz / 2, cy - r * 1.8 - Math.max(8, sz * 0.15) * 0.45, quality, sz);
+      ctx.globalAlpha = baseAlpha * (status === 0 ? 1 : .72);
       for (let k = 0; k < n; k++) {
         const cx = x0 + k * step, half = k === full;
         ctx.beginPath(); starPath(ctx, cx, cy, r);
