@@ -285,11 +285,15 @@
 #mapView .sidebar { width:320px; min-height:0; }
 #mapView .sidebar-head { padding:12px 16px; }
 #mapView .sidebar-head h1 { font-size:1.05rem; }
+#mapView .scan-details { margin-top:7px; color:var(--ink-dim); }
+#mapView .scan-details summary { cursor:pointer; color:var(--accent); font-size:.72rem; user-select:none; }
+#mapView .scan-details[open] summary { margin-bottom:7px; }
+#mapView .scan-details .stats { margin:8px -16px -12px; border-top:1px solid var(--panel-border); }
 #mapView .stats { padding:8px 16px; gap:5px 10px; }
 #mapView .stat .n { font-size:.95rem; }
 #mapView .sidebar-head .sub { font-size:.65rem; letter-spacing:.02em; }
-#mapView .side-tabs { display:flex; padding:8px 10px; gap:4px; border-bottom:1px solid var(--panel-border); }
-#mapView .side-tabs button { flex:1; }
+#mapView .side-tabs { display:flex; flex-wrap:wrap; padding:8px 10px; gap:4px; border-bottom:1px solid var(--panel-border); }
+#mapView .side-tabs button { flex:1 1 calc(33.333% - 4px); padding-left:4px; padding-right:4px; }
 #mapView .side-panel { min-height:0; flex:1; overflow:auto; padding:10px; }
 #mapView #resourcePanel { display:flex; flex-direction:column; padding:0; }
 #mapView #resourcePanel .legend-scroll { flex:1 0 auto; overflow:visible; }
@@ -315,6 +319,15 @@
 #mapView .resource-filters summary { cursor:pointer; color:var(--accent); }
 #mapView .filter-pair { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
 #mapView #resourceResults { padding:0 10px; }
+#mapView .nature-intro { margin-top:0; }
+#mapView .nature-results { display:flex; flex-direction:column; gap:3px; }
+#mapView .nature-row { border:1px solid transparent; border-radius:6px; }
+#mapView .nature-row[open] { border-color:var(--panel-border); background:rgba(201,138,62,.06); }
+#mapView .nature-row summary { list-style:none; cursor:pointer; }
+#mapView .nature-row summary::-webkit-details-marker { display:none; }
+#mapView .nature-row .type-glyph canvas { width:36px; height:36px; display:block; }
+#mapView .nature-top { display:flex; flex-direction:column; gap:3px; padding:2px 7px 7px 48px; }
+#mapView .nature-top button { text-align:left; font-size:11px; padding:5px 7px; }
 #mapView .scan-failure-row { opacity:.75; order:9; }
 #mapView .scan-failure-row .type-glyph { width:16px; height:16px; }
 #mapView .scan-failure-row .name { font-size:.72rem; }
@@ -389,20 +402,28 @@
   <aside class="sidebar">
     <div class="sidebar-head">
       <h1><span data-i18n="mapTitle">Разведка континента</span> <span id="continentNameLabel"></span></h1>
-      <div class="scan-duration-badge" id="scanDurationBadge" hidden><span class="icon">⏱</span><span id="scanDurationText"></span></div>
-      <div class="sub" id="sourceLabel"></div>
-      <div class="sub" id="freshness"></div>
-      <div class="sub" id="visitCount" hidden></div>
-      <div class="sub" id="activeCount" hidden></div>
+      <details class="scan-details">
+        <summary data-i18n="scanDetails">Сведения о разведке</summary>
+        <div class="scan-duration-badge" id="scanDurationBadge" hidden><span class="icon">⏱</span><span id="scanDurationText"></span></div>
+        <div class="sub" id="sourceLabel"></div>
+        <div class="sub" id="freshness"></div>
+        <div class="sub" id="visitCount" hidden></div>
+        <div class="sub" id="activeCount" hidden></div>
+        <div class="stats" id="statsBlock"></div>
+      </details>
     </div>
-    <div class="stats" id="statsBlock"></div>
         <button id="closeSidebar" class="mobile-only" data-mt="close">Закрыть</button>
     <nav class="side-tabs" aria-label="Map tools">
       <button data-panel="resource" class="active" data-mt="resources">Ресурсы</button>
+      <button data-panel="nature" data-mt="nature">Растения</button>
       <button data-panel="owner" data-mt="owners">Владения</button>
       <button data-panel="list" data-mt="list">Список</button>
       <button data-panel="plan" data-mt="plan">План</button>
     </nav>
+    <section id="naturePanel" class="side-panel" hidden>
+      <p class="muted nature-intro" data-mt="natureIntro">Деревья и растения: качество, свободные клетки и лучшие находки.</p>
+      <div id="natureResults" class="nature-results"></div>
+    </section>
     <section id="listPanel" class="side-panel" hidden>
       <label><span data-mt="resource">Ресурс</span><select id="listType"></select></label>
       <div class="filter-pair"><label><span data-mt="quality">Качество от, %</span><input id="listQuality" type="number" min="0" max="100" value="0"></label></div>
@@ -524,7 +545,7 @@
 // DATA) текст перестраивается вызовом соответствующих render-функций.
 const I18N = {
   ru: {
-    mapTitle: "Разведка континента", pageTitleMap: "Разведка континента — Lands of Lords",
+    mapTitle: "Разведка континента", pageTitleMap: "Разведка континента — Lands of Lords", scanDetails: "Сведения о разведке",
     searchTerrain: "Поиск типа местности…",
     showAll: "Сбросить всё",
     zoomIn: "Приблизить", zoomOut: "Отдалить", zoomReset: "Сброс масштаба",
@@ -549,7 +570,7 @@ const I18N = {
     tQuality: (q) => `${q}% качество`, cellsCount: (n) => `${n} клеток`,
   },
   en: {
-    mapTitle: "Continent Explorer", pageTitleMap: "Continent Explorer — Lands of Lords",
+    mapTitle: "Continent Explorer", pageTitleMap: "Continent Explorer — Lands of Lords", scanDetails: "Exploration details",
     searchTerrain: "Search terrain type…",
     showAll: "Reset all",
     zoomIn: "Zoom in", zoomOut: "Zoom out", zoomReset: "Reset zoom",
@@ -2530,7 +2551,7 @@ const mapTools = (() => {
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const words = {
     freshOnly:['Только новые находки перескана','Only new finds of the rescan'], copyGame:['Ссылка на игру','Game link'],
-    close:['Закрыть','Close'], resources:['Ресурсы','Resources'], owners:['Владения','Domains'], plan:['План','Plan'], list:['Список','List'],
+    close:['Закрыть','Close'], resources:['Ресурсы','Resources'], nature:['Растения','Plants'], natureIntro:['Деревья и растения: качество, свободные клетки и лучшие находки.','Trees and plants: quality, free cells, and best finds.'], owners:['Владения','Domains'], plan:['План','Plan'], list:['Список','List'],
     terrain:['Местность','Terrain'], mode_terrain:['Местность','Terrain'], mode_owners:['По владельцам','By owner'], mode_resources:['Минералы','Minerals'], findOwner:['Поселение или лорд','Settlement or lord'], visibleOnly:['В видимой области','In visible area'], favoritesOnly:['Только избранное','Favorites only'],
     sort:['Сортировка','Sort'], bySize:['По площади','By area'], byName:['По названию','By name'], byDistance:['По расстоянию','By distance'], byQuality:['По качеству','By quality'],
     more:['Показать ещё','Show more'], savedPlaces:['Сохранённые места','Saved places'], variant:['Вариант плана','Plan variant'],
@@ -2600,11 +2621,12 @@ const mapTools = (() => {
   function closeSidebar() { document.querySelector('#mapView .sidebar').classList.remove('open'); $('openSidebar').setAttribute('aria-expanded','false'); }
   function setPanel(panel) {
     state.panel=panel;
-    for(const name of ['resource','owner','list','plan']) $(name+'Panel').hidden=name!==panel;
+    for(const name of ['resource','nature','owner','list','plan']) $(name+'Panel').hidden=name!==panel;
     document.querySelectorAll('[data-panel]').forEach(b=>{b.classList.toggle('active',b.dataset.panel===panel);b.setAttribute('aria-pressed',String(b.dataset.panel===panel));});
     if(panel!=='plan') setTool('pan');
     if(panel==='owner') renderOwners();
     if(panel==='list') renderList();
+    if(panel==='nature') renderNature();
     render();
   }
   function setMode(mode) {
@@ -2726,7 +2748,25 @@ const mapTools = (() => {
       +`<optgroup label="${tr('Земля','Land')}">`+MAP_DATA.types.filter(t=>!t.mineral&&t.glyph!=='water').map(t=>opt('g:'+t.code,typeName(t))).join('')+'</optgroup>';
     $('listType').value=[...$('listType').options].some(o=>o.value===cur)?cur:'';
   }
-  window.refreshListOptions=()=>{buildListOptions();if(state.panel==='list')renderList();};
+  function renderNature() {
+    const plants=window.getPlantData?window.getPlantData():{};
+    const rows=Object.entries(plants).map(([code,a])=>{
+      const cells=[];let free=0;
+      for(let i=0;i<a.length;i+=4){const q=Number(a[i+2]);cells.push([a[i],a[i+1],Number.isFinite(q)?q:0,a[i+3]]);if(a[i+3]===0)free++;}
+      cells.sort((x,y)=>y[2]-x[2]||x[0]-y[0]||x[1]-y[1]);
+      return {code,name:window.objTypeName(code),cells,free,best:cells[0]?.[2]??0};
+    }).sort((a,b)=>a.name.localeCompare(b.name,currentLang));
+    $('natureResults').innerHTML=rows.map(r=>`<details class="nature-row">
+      <summary class="legend-row-main">
+        <span class="type-glyph"><canvas width="72" height="72" data-plant-icon="${esc(r.code)}"></canvas></span>
+        <div class="legend-text"><div class="legend-name">${esc(r.name)}</div><div class="legend-best">${tr('лучшее','best')} ${r.best}% · ${tr('свободно','free')} ${fmtNum(r.free)}</div></div>
+        <span class="count">${fmtNum(r.free)}/${fmtNum(r.cells.length)}</span>
+      </summary>
+      <div class="nature-top">${r.cells.slice(0,10).map((p,i)=>`<button data-resource-cell="${p[0]},${p[1]}">${i+1}. ${formatCoords(p[0],p[1])} · ${p[2]}% ${p[3]===0?'· '+tr('свободно','free'):''}</button>`).join('')}</div>
+    </details>`).join('') || `<p class="muted">${tr('Нет данных о растительности.','No plant data available.')}</p>`;
+    requestAnimationFrame(()=>$('natureResults').querySelectorAll('[data-plant-icon]').forEach(c=>{const g=c.getContext('2d');g.scale(2,2);drawTree(g,c.dataset.plantIcon,0,0,36);}));
+  }
+  window.refreshListOptions=()=>{buildListOptions();if(state.panel==='list')renderList();if(state.panel==='nature')renderNature();};
   window.refreshObjectCard=()=>{if(picked)showCard();};
   let listRows=[], listLimit=100;
   function renderList() {
@@ -3051,6 +3091,7 @@ const mapTools = (() => {
     $('resourceType').options[0].textContent=label('allResources');for(const option of [...$('resourceType').options].slice(1)){const t=MAP_DATA.types.find(t=>t.code===option.value);if(t)option.textContent=typeName(t);}
     buildListOptions();
     if(state.panel==='list') renderList();
+    if(state.panel==='nature') renderNature();
     renderOwners();renderResourceResults();showCard();const pending=draft;setTool(state.tool);draft=pending;render();
   }
   function onData() {
@@ -3095,6 +3136,7 @@ const mapTools = (() => {
   $('applyResourceFilter').onclick=filterResources;$('resetResourceFilter').onclick=clearFilter;
   $('useMapCenter').onclick=()=>{$('resourceOrigin').value=formatCoords(...snap(center()));};
   $('listResults').onclick=e=>{const b=e.target.closest('[data-resource-cell]');if(b)pickCell(...b.dataset.resourceCell.split(',').map(Number),true);};
+  $('natureResults').onclick=e=>{const b=e.target.closest('[data-resource-cell]');if(b){e.preventDefault();pickCell(...b.dataset.resourceCell.split(',').map(Number),true);}};
   $('listResults').addEventListener('click',e=>{const b=e.target.closest('[data-copy-game]'); if(!b) return; const [x,y]=b.dataset.copyGame.split(',').map(Number); copyText(gameUrl(x,y)); notice(tr('Ссылка на игру скопирована','Game link copied'));});
   for(const id of ['listType','listQuality','listFree','listFresh']) $(id).addEventListener(id==='listQuality'?'input':'change',()=>{listLimit=100;renderList();});
   $('resourceResults').onclick=e=>{const b=e.target.closest('[data-resource-cell]');if(b)pickCell(...b.dataset.resourceCell.split(',').map(Number),true);};
