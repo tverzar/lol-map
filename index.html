@@ -331,8 +331,9 @@
 #mapView .nature-row summary { list-style:none; cursor:pointer; }
 #mapView .nature-row summary::-webkit-details-marker { display:none; }
 #mapView .nature-row .type-glyph canvas { width:36px; height:36px; display:block; }
-#mapView .nature-top { display:flex; flex-direction:column; gap:3px; padding:2px 7px 7px 48px; }
+#mapView .nature-top { display:flex; flex-direction:column; gap:3px; max-height:320px; overflow-y:auto; overscroll-behavior:contain; padding:2px 7px 7px 48px; scrollbar-gutter:stable; }
 #mapView .nature-top button { text-align:left; font-size:11px; padding:5px 7px; }
+#mapView .nature-progress { position:sticky; bottom:0; margin:0; padding:5px 7px; background:var(--panel); color:var(--ink-dim); font-size:10px; }
 @media(max-width:360px) { #mapView .nature-controls { grid-template-columns:1fr; } }
 #mapView .scan-failure-row { opacity:.75; order:9; }
 #mapView .scan-failure-row .type-glyph { width:16px; height:16px; }
@@ -2759,6 +2760,17 @@ const mapTools = (() => {
       +`<optgroup label="${tr('Земля','Land')}">`+MAP_DATA.types.filter(t=>!t.mineral&&t.glyph!=='water').map(t=>opt('g:'+t.code,typeName(t))).join('')+'</optgroup>';
     $('listType').value=[...$('listType').options].some(o=>o.value===cur)?cur:'';
   }
+  let natureRowsByCode=new Map();
+  function fillNatureCells(list) {
+    const row=natureRowsByCode.get(list.dataset.natureList);if(!row)return;
+    const start=Number(list.dataset.limit)||0;if(start>=row.cells.length)return;
+    const end=Math.min(start+150,row.cells.length);
+    const progress=list.querySelector('.nature-progress');if(progress)progress.remove();
+    let html='';
+    for(let i=start;i<end;i++){const p=row.cells[i];html+=`<button data-resource-cell="${p[0]},${p[1]}">${i+1}. ${formatCoords(p[0],p[1])} · ${p[2]}% ${p[3]===0?'· '+tr('свободно','free'):''}</button>`;}
+    list.insertAdjacentHTML('beforeend',html);list.dataset.limit=end;
+    if(end<row.cells.length)list.insertAdjacentHTML('beforeend',`<p class="nature-progress">${tr('Показано','Shown')} ${fmtNum(end)} / ${fmtNum(row.cells.length)} · ${tr('прокрутите ниже','scroll down')}</p>`);
+  }
   function renderNature() {
     const plants=window.getPlantData?window.getPlantData():{};
     const query=$('natureSearch').value.trim().toLocaleLowerCase();
@@ -2770,6 +2782,7 @@ const mapTools = (() => {
       const names=OBJ_NAMES['tree:'+code]||[code,code];
       return {code,name:window.objTypeName(code),search:(code+' '+names.join(' ')).toLocaleLowerCase(),cells,free,best:cells[0]?.[2]??0};
     }).filter(r=>!query||r.search.includes(query)).sort((a,b)=>sort==='name'?a.name.localeCompare(b.name,currentLang):sort==='count'?b.cells.length-a.cells.length||b.best-a.best:b.best-a.best||b.cells.length-a.cells.length||a.name.localeCompare(b.name,currentLang));
+    natureRowsByCode=new Map(rows.map(r=>[r.code,r]));
     $('natureCount').textContent=tr('Найдено видов: ','Plant types found: ')+fmtNum(rows.length);
     $('natureResults').innerHTML=rows.map(r=>`<details class="nature-row">
       <summary class="legend-row-main">
@@ -2777,8 +2790,10 @@ const mapTools = (() => {
         <div class="legend-text"><div class="legend-name">${esc(r.name)}</div><div class="legend-best">${tr('лучшее','best')} ${r.best}% · ${tr('свободно','free')} ${fmtNum(r.free)}</div></div>
         <span class="count">${fmtNum(r.free)}/${fmtNum(r.cells.length)}</span>
       </summary>
-      <div class="nature-top">${r.cells.slice(0,10).map((p,i)=>`<button data-resource-cell="${p[0]},${p[1]}">${i+1}. ${formatCoords(p[0],p[1])} · ${p[2]}% ${p[3]===0?'· '+tr('свободно','free'):''}</button>`).join('')}</div>
+      <div class="nature-top" data-nature-list="${esc(r.code)}" data-limit="0"></div>
     </details>`).join('') || `<p class="muted">${tr('Нет данных о растительности.','No plant data available.')}</p>`;
+    $('natureResults').querySelectorAll('.nature-row').forEach(details=>details.addEventListener('toggle',()=>{if(details.open){const list=details.querySelector('[data-nature-list]');if(Number(list.dataset.limit)===0)fillNatureCells(list);}}));
+    $('natureResults').querySelectorAll('[data-nature-list]').forEach(list=>list.addEventListener('scroll',()=>{if(list.scrollTop+list.clientHeight>=list.scrollHeight-80)fillNatureCells(list);},{passive:true}));
     requestAnimationFrame(()=>$('natureResults').querySelectorAll('[data-plant-icon]').forEach(c=>{const g=c.getContext('2d');g.scale(2,2);drawTree(g,c.dataset.plantIcon,0,0,36);}));
   }
   window.refreshListOptions=()=>{buildListOptions();if(state.panel==='list')renderList();if(state.panel==='nature')renderNature();};
