@@ -37,15 +37,15 @@
     width: 35%; animation: loading-sweep 1.15s ease-in-out infinite alternate;
   }
   @keyframes loading-sweep { from { transform: translateX(0); } to { transform: translateX(185%); } }
-  #loadingMap .loading-scene { position:relative; width:min(360px,84vw); height:150px; margin:0 auto -2px; overflow:hidden; }
-  #loadingMap .loading-mason { position:absolute; left:10px; bottom:0; width:64px; height:144px; z-index:2;
+  #loadingMap .loading-scene { position:relative; width:min(320px,84vw); height:168px; margin:0 auto -2px; overflow:hidden; }
+  #loadingMap .loading-mason { position:absolute; left:42px; bottom:0; width:74px; height:166px; z-index:2;
     background:url("assets/loading/mason-sprite-v1.png") 0 0/600% 100% no-repeat;
     filter:drop-shadow(0 4px 5px rgba(0,0,0,.55)); animation:mason-build 2.7s steps(5,end) infinite; }
-  #loadingMap .loading-wall { position:absolute; right:8px; bottom:5px; width:178px; display:grid; grid-template-columns:repeat(4,1fr); gap:3px; align-content:end; }
-  #loadingMap .loading-wall i { height:20px; border:1px solid #7b3d22; border-radius:2px; background:#3b291f; opacity:.18; transform:translateY(-7px) scale(.94); transition:opacity .2s,transform .25s,background .2s; }
+  #loadingMap .loading-wall { position:absolute; right:48px; bottom:7px; width:112px; display:grid; grid-template-columns:repeat(4,1fr); gap:2px; align-content:end; }
+  #loadingMap .loading-wall i { height:13px; border:1px solid transparent; border-radius:2px; background:transparent; opacity:0; transform:translateY(-5px) scale(.9); transition:opacity .2s,transform .25s,background .2s; }
   #loadingMap .loading-wall i.built { background:linear-gradient(#b65f34,#8d4528); box-shadow:inset 0 2px #d18455,inset 0 -2px #5c2d1d; opacity:1; transform:none; }
-  #loadingMap .loading-wall i:nth-child(8n+5) { margin-left:18px; }
-  #loadingMap .loading-wall i:nth-child(8n+8) { margin-right:-18px; }
+  #loadingMap .loading-wall i:nth-child(8n+5) { margin-left:11px; }
+  #loadingMap .loading-wall i:nth-child(8n+8) { margin-right:-11px; }
   @keyframes mason-build { from { background-position:0 0; } to { background-position:100% 0; } }
   @media(prefers-reduced-motion:reduce) { #loadingMap .loading-mason { animation:none; } #loadingMap .loading-wall i { transition:none; } }
 
