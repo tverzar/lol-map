@@ -376,6 +376,8 @@
 #mapView #planObjects { font-size:12px; }
 #mapView #drawingActions { position:absolute; top:112px; left:14px; z-index:4; display:flex; align-items:center; gap:6px; padding:7px; border:1px solid var(--accent); border-radius:7px; background:#17212bef; font:12px system-ui; }
 #mapView #drawingActions button { background:var(--bg); color:var(--ink); border:1px solid var(--panel-border); border-radius:5px; padding:8px; cursor:pointer; }
+#mapView #drawingActions select { background:var(--bg); color:var(--ink); border:1px solid var(--panel-border); border-radius:5px; padding:8px; }
+#mapView #quickMeasure svg { display:block; }
 #mapView #drawingMeasurement { max-width: min(55vw, 480px); max-height: 5em; overflow: auto; color:#efd294; line-height:1.4; }
 .mobile-only { display:none; }
 @media(max-width:760px) {
@@ -2642,6 +2644,7 @@ const mapTools = (() => {
     more:['Показать ещё','Show more'], savedPlaces:['Сохранённые места','Saved places'], variant:['Вариант плана','Plan variant'],
     new:['Новый','New'], duplicate:['Копия','Duplicate'], delete:['Удалить','Delete'], name:['Название','Name'], showPlan:['Показывать план','Show plan'],
     pan:['Обзор','Pan'], road:['Дорога','Road'], wall:['Стена','Wall'], block:['Квартал','Block'], measure:['Линейка','Measure'], area:['Площадь','Area'],
+    measureStraight:['По прямой','Straight'], measureGrid:['Вдоль клеток','Along grid'], measureMode:['Режим линейки','Measurement mode'],
     moveImage:['Перенести схему','Move image'], overlay:['Перенести схему','Move image'], erase:['Удалить объект','Erase object'], finish:['Завершить','Finish'], undo:['Отменить','Undo'], redo:['Повторить','Redo'], grid:['Сетка клеток','Cell grid'],
     uploadImage:['Наложить изображение (PNG/JPG/WebP)','Overlay image (PNG/JPG/WebP)'], imageWidth:['Ширина в клетках','Width in cells'], rotation:['Поворот, °','Rotation, °'], opacity:['Непрозрачность','Opacity'], removeImage:['Убрать изображение','Remove image'],
     exportPng:['Экспорт PNG','Export PNG'], exportJson:['Сохранить JSON','Export JSON'], importJson:['Загрузить план JSON','Import plan JSON'],
@@ -3117,13 +3120,19 @@ const mapTools = (() => {
   function updateMeasurement(points) {
     let text='';
     if(points.length && state.tool==='measure') {
-      const segments=points.slice(1).map((p,i)=>`${i+1}–${i+2}: ${MapGeometry.distance(points[i],p).toFixed(1)}`);
-      text=tr('Всего: ','Total: ')+MapGeometry.metrics(points).length.toFixed(1)+' '+tr('кл.','cells')+(segments.length?' · '+segments.join(' · '):'');
+      const segments=points.slice(1).map((p,i)=>`${i+1}–${i+2}: ${MapGeometry.metrics(measurePath([points[i],p])).length.toFixed(1)}`);
+      text=tr('Всего: ','Total: ')+MapGeometry.metrics(measurePath(points)).length.toFixed(1)+' '+tr('кл.','cells')+(segments.length?' · '+segments.join(' · '):'');
     } else if(points.length) {
       const m=MapGeometry.metrics(points,state.tool==='area');
       text=tr('Длина / периметр: ','Length / perimeter: ')+m.length.toFixed(1)+' '+tr('кл.','cells')+(state.tool==='area'?' · '+tr('Площадь: ','Area: ')+m.area.toFixed(1)+' '+tr('кл²','cells²'):'');
     }
     $('measureResult').textContent=text;$('drawingMeasurement').textContent=state.tool==='measure'?text:'';
+  }
+  function measurePath(points) {
+    if($('measureMode').value!=='grid'||!points.length)return points.map(p=>[...p]);
+    const path=[[...points[0]]];
+    for(let i=1;i<points.length;i++)path.push(...MapGeometry.orthogonal(points[i-1],points[i]));
+    return path;
   }
   function setTool(tool) {
     state.tool=tool;draft=[];updateMeasurement(draft);canvas.style.cursor=tool==='pan'?'grab':'crosshair';
@@ -3131,12 +3140,13 @@ const mapTools = (() => {
     document.querySelectorAll('[data-tool]').forEach(b=>{b.classList.toggle('active',b.dataset.tool===tool);b.setAttribute('aria-pressed',String(b.dataset.tool===tool));});
     $('planHelp').textContent=tool==='pan'?tr('Перетаскивайте карту. Колесо или два пальца — масштаб.','Drag to pan. Wheel or pinch to zoom.'):tool==='block'?tr('Укажите два противоположных угла квартала.','Select two opposite block corners.'):tool==='overlay'?tr('Нажмите на карту, чтобы перенести центр изображения. Размер и поворот — ниже.','Click to place the image center. Set size and rotation below.'):tool==='erase'?tr('Нажмите на линию или внутри квартала для удаления.','Click a line or inside a block to erase it.'):tr('Нажимайте на карту, добавляя вершины. «Завершить» или Enter — сохранить, Escape — отменить. Дороги и стены идут по осям сетки.','Click to add vertices. Finish or Enter saves; Escape cancels. Roads and walls follow grid axes.');
     $('drawingActions').hidden=tool==='pan';$('drawingToolName').textContent=label(tool);$('finishDrawing').hidden=['pan','overlay','erase','block'].includes(tool);
+    $('measureMode').hidden=tool!=='measure';
     updatePlanUI();
   }
   function finishShape() {
     const closed=['area','block'].includes(state.tool);
     if(draft.length<(closed?3:2))return;
-    checkpoint();currentPlan().shapes.push({type:state.tool,points:draft.map(p=>[...p])});draft=[];updatePlanUI();
+    checkpoint();currentPlan().shapes.push({type:state.tool,points:state.tool==='measure'?measurePath(draft):draft.map(p=>[...p])});draft=[];updatePlanUI();
   }
   function planClick(p) {
     const plan=currentPlan();
@@ -3170,7 +3180,7 @@ const mapTools = (() => {
       for(let x=Math.ceil(a[0]);x<=b[0];x++){const sx=worldToScreen(x,0)[0];ctx.moveTo(sx,0);ctx.lineTo(sx,h);}
       for(let y=Math.ceil(a[1]);y<=b[1];y++){const sy=worldToScreen(0,y)[1];ctx.moveTo(0,sy);ctx.lineTo(w,sy);}ctx.stroke();
     }
-    for(const shape of [...p.shapes,...(draft.length?[{type:state.tool,points:draft,draft:true}]:[])]) {
+    for(const shape of [...p.shapes,...(draft.length?[{type:state.tool,points:state.tool==='measure'?measurePath(draft):draft,draft:true}]:[])]) {
       const closed=['block','area'].includes(shape.type);ctx.beginPath();
       shape.points.forEach((p,i)=>{const s=worldToScreen(...p);i?ctx.lineTo(...s):ctx.moveTo(...s);});if(closed)ctx.closePath();
       ctx.strokeStyle=colors[shape.type]||'#fff';ctx.lineWidth=shape.type==='road'?Math.max(3,size*.6):3;ctx.lineJoin='round';ctx.setLineDash(shape.draft?[5,4]:[]);
@@ -3208,6 +3218,7 @@ const mapTools = (() => {
   }
   function localize() {
     document.querySelectorAll('[data-mt]').forEach(el=>el.textContent=label(el.dataset.mt));
+    $('quickMeasure').setAttribute('aria-label',label('measure'));$('quickMeasure').title=label('measure');$('measureMode').setAttribute('aria-label',label('measureMode'));
     document.querySelectorAll('[data-mt-placeholder]').forEach(el=>el.placeholder=label(el.dataset.mtPlaceholder));
     $('miniMap').setAttribute('aria-label',tr('Обзор континента: нажмите для перехода','Continent overview: click to navigate'));
     $('resourceType').options[0].textContent=label('allResources');for(const option of [...$('resourceType').options].slice(1)){const t=MAP_DATA.types.find(t=>t.code===option.value);if(t)option.textContent=typeName(t);}
@@ -3239,14 +3250,15 @@ const mapTools = (() => {
   }
   // Static controls are inserted once so language changes preserve form values and focus.
   canvas.parentElement.insertAdjacentHTML('beforeend','<div id="heraldLayer" aria-hidden="true"></div>');
-  canvas.parentElement.insertAdjacentHTML('beforeend',`<div class="map-controls"><button id="openSidebar" class="mobile-only" aria-expanded="false">${span('search')}</button><div class="mode-group">${['terrain','owners','resources'].map(m=>`<button data-mode="${m}" class="${m==='terrain'?'active':''}">${span('mode_'+m)}</button>`).join('')}</div><button id="quickMeasure" aria-pressed="false">${span('measure')}</button><span class="spacer"></span><button id="shareMap">${span('share')}</button></div><aside id="objectCard" class="object-card" hidden aria-live="polite"></aside><canvas id="miniMap" width="308" height="224" tabindex="0"></canvas><div id="mapScale"><span id="scaleText"></span><span id="scaleBar"></span></div><div id="unknownKey">${span('noData')}</div><div id="mapNotice" role="status" hidden></div>`);
-  canvas.parentElement.insertAdjacentHTML('beforeend',`<div id="drawingActions" hidden><strong id="drawingToolName"></strong><button id="finishDrawing">${span('finish')}</button><button id="undoDrawing">${span('undo')}</button><button id="cancelDrawing">${span('pan')}</button><output id="drawingMeasurement" aria-live="polite"></output></div>`);
+  canvas.parentElement.insertAdjacentHTML('beforeend',`<div class="map-controls"><button id="openSidebar" class="mobile-only" aria-expanded="false">${span('search')}</button><div class="mode-group">${['terrain','owners','resources'].map(m=>`<button data-mode="${m}" class="${m==='terrain'?'active':''}">${span('mode_'+m)}</button>`).join('')}</div><button id="quickMeasure" aria-label="${label('measure')}" title="${label('measure')}" aria-pressed="false"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 16 16 3l5 5L8 21zM13 6l3 3M10 9l2 2M7 12l3 3M4 15l2 2"/></svg></button><span class="spacer"></span><button id="shareMap">${span('share')}</button></div><aside id="objectCard" class="object-card" hidden aria-live="polite"></aside><canvas id="miniMap" width="308" height="224" tabindex="0"></canvas><div id="mapScale"><span id="scaleText"></span><span id="scaleBar"></span></div><div id="unknownKey">${span('noData')}</div><div id="mapNotice" role="status" hidden></div>`);
+  canvas.parentElement.insertAdjacentHTML('beforeend',`<div id="drawingActions" hidden><strong id="drawingToolName"></strong><select id="measureMode" aria-label="${label('measureMode')}" hidden><option value="straight" data-mt="measureStraight">${label('measureStraight')}</option><option value="grid" data-mt="measureGrid">${label('measureGrid')}</option></select><button id="finishDrawing">${span('finish')}</button><button id="undoDrawing">${span('undo')}</button><button id="cancelDrawing">${span('pan')}</button><output id="drawingMeasurement" aria-live="polite"></output></div>`);
   $('resourcePanel').insertAdjacentHTML('afterbegin',`<details class="resource-filters" id="resourceFilterDetails"><summary>${span('filters')}</summary><label>${span('resource')}<select id="resourceType"></select></label><div class="filter-pair"><label>${span('quality')}<input id="resourceQuality" type="number" min="0" max="100" value="0"></label><label>${span('sort')}<select id="resourceSort"><option value="distance" data-mt="byDistance">По расстоянию</option><option value="quality" data-mt="byQuality">По качеству</option></select></label></div><label class="check"><input id="resourceFree" type="checkbox" checked>${span('freeOnly')}</label><label>${span('origin')}<input id="resourceOrigin"></label><button id="useMapCenter">${span('useCenter')}</button><label>${span('radius')}<input id="resourceRadius" type="number" min="0" step="1"></label><div class="button-row"><button id="applyResourceFilter">${span('apply')}</button><button id="resetResourceFilter">${span('reset')}</button></div></details><div id="resourceResults" hidden></div>`);
   document.querySelectorAll('[data-panel]').forEach(b=>b.onclick=()=>setPanel(b.dataset.panel));
   document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
   document.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>{setTool(b.dataset.tool);if(b.dataset.tool!=='pan')closeSidebar();});
   $('openSidebar').onclick=()=>{document.querySelector('#mapView .sidebar').classList.add('open');$('openSidebar').setAttribute('aria-expanded','true');};$('closeSidebar').onclick=closeSidebar;
   $('quickMeasure').onclick=()=>{if(state.tool==='measure'){setTool('pan');return;}planVisible=true;$('planVisible').checked=true;closeSidebar();$('objectCard').hidden=true;setTool('measure');};
+  $('measureMode').onchange=()=>{updateMeasurement(draft);render();};
   $('shareMap').onclick=share;
   for(const id of ['ownerSearch','ownersVisible','ownersFavorites','ownerSort'])$(id).addEventListener('input',()=>{ownerLimit=80;renderOwners();});
   $('moreOwners').onclick=()=>{ownerLimit+=80;renderOwners();};
