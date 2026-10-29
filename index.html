@@ -38,20 +38,15 @@
   }
   @keyframes loading-sweep { from { transform: translateX(0); } to { transform: translateX(185%); } }
   #loadingMap .loading-scene { position:relative; width:min(320px,84vw); height:168px; margin:0 auto -2px; overflow:hidden; }
-  #loadingMap .loading-mason { position:absolute; left:42px; bottom:0; width:74px; height:166px; z-index:2; overflow:hidden;
+  #loadingMap .loading-mason { position:absolute; left:50%; transform:translateX(-50%); bottom:0; width:74px; height:166px; z-index:2; overflow:hidden;
     filter:drop-shadow(0 4px 5px rgba(0,0,0,.55)); animation:mason-bob .9s ease-in-out infinite alternate; }
   #loadingMap .loading-mason::before { content:""; position:absolute; inset:0 auto 0 0; width:600%;
     background:url("assets/loading/mason-sprite-v1-clean.png") 0 0/100% 100% no-repeat;
     will-change:transform; animation:mason-frames 2.7s steps(5,end) infinite; }
   #loadingMap .loading-mason::after { content:""; position:absolute; z-index:2; top:0; right:0; bottom:0; width:3px; background:var(--bg); }
-  #loadingMap .loading-wall { position:absolute; left:112px; bottom:7px; width:112px; display:grid; grid-template-columns:repeat(4,1fr); gap:2px; align-content:end; }
-  #loadingMap .loading-wall i { height:13px; border:1px solid transparent; border-radius:2px; background:transparent; opacity:0; transform:translateY(-5px) scale(.9); transition:opacity .2s,transform .25s,background .2s; }
-  #loadingMap .loading-wall i.built { background:linear-gradient(#b65f34,#8d4528); box-shadow:inset 0 2px #d18455,inset 0 -2px #5c2d1d; opacity:1; transform:none; }
-  #loadingMap .loading-wall i:nth-child(8n+5) { margin-left:11px; }
-  #loadingMap .loading-wall i:nth-child(8n+8) { margin-right:-11px; }
   @keyframes mason-frames { from { transform:translateX(0); } to { transform:translateX(-83.3333%); } }
-  @keyframes mason-bob { from { transform:translateY(0); } to { transform:translateY(-1.5px); } }
-  @media(prefers-reduced-motion:reduce) { #loadingMap .loading-mason, #loadingMap .loading-mason::before { animation:none; } #loadingMap .loading-wall i { transition:none; } }
+  @keyframes mason-bob { from { transform:translate(-50%,0); } to { transform:translate(-50%,-1.5px); } }
+  @media(prefers-reduced-motion:reduce) { #loadingMap .loading-mason, #loadingMap .loading-mason::before { animation:none; } }
 
   /* --- верхняя панель: континент + переключатель языка --- */
   .topbar {
@@ -421,7 +416,7 @@
   </div>
 </div>
 
-<div id="loadingMap" role="progressbar" aria-label="Загрузка карты / Loading map" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="loading-scene" aria-hidden="true"><div class="loading-mason"></div><div class="loading-wall"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div><span class="loading-label">Загрузка карты / Downloading map data</span><div class="loading-track"><div class="loading-fill"></div></div></div><div class="app" id="mapView">
+<div id="loadingMap" role="progressbar" aria-label="Загрузка карты / Loading map" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="loading-scene" aria-hidden="true"><div class="loading-mason"></div></div><span class="loading-label">Загрузка карты / Downloading map data</span><div class="loading-track"><div class="loading-fill"></div></div></div><div class="app" id="mapView">
   <aside class="sidebar">
     <div class="sidebar-head">
       <h1><span data-i18n="mapTitle">Разведка континента</span> <span id="continentNameLabel"></span></h1>
@@ -743,10 +738,6 @@ function setLoadingProgress(percent, label, indeterminate = false) {
   const fill = root.querySelector(".loading-fill");
   if (text) text.textContent = label;
   if (fill && !indeterminate) fill.style.width = `${percent}%`;
-  const bricks = [...root.querySelectorAll(".loading-wall i")];
-  const safePercent = Math.max(0, Math.min(100, percent));
-  const built = safePercent >= 100 ? bricks.length : Math.min(bricks.length - 2, Math.floor(safePercent / 100 * bricks.length));
-  bricks.forEach((brick, index) => brick.classList.toggle("built", index >= bricks.length - built));
 }
 
 let ALL_DATA;
