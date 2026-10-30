@@ -324,6 +324,8 @@
 #mapView .result-main small { display:block; color:var(--ink-dim); }
 #mapView .result-main .swatch { display:inline-block; margin-right:6px; }
 #mapView .tool-grid { display:grid; grid-template-columns:1fr 1fr; gap:5px; margin-top:10px; }
+#mapView .search-category { display:block; padding:8px 10px 0; font:13px system-ui,sans-serif; }
+#mapView .search-category select { display:block; width:100%; margin-top:4px; padding:7px; background:var(--bg); color:var(--ink); border:1px solid var(--panel-border); border-radius:5px; }
 #mapView .resource-filters { margin:0 10px 8px; padding:8px; border:1px solid var(--panel-border); border-radius:6px; }
 #mapView .resource-filters summary { cursor:pointer; color:var(--accent); }
 #mapView .map-free-filter { margin:8px 10px !important; padding:7px 8px; border:1px solid var(--panel-border); border-radius:6px; color:var(--ink-dim); }
@@ -332,7 +334,7 @@
 #mapView .filter-pair { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
 #mapView #resourceResults { padding:0 10px; }
 #mapView .nature-intro { margin-top:0; }
-#mapView #naturePanel { display:flex; flex-direction:column; overflow:hidden; }
+#mapView #naturePanel { display:block; overflow-y:auto; }
 #mapView #naturePanel[hidden] { display:none; }
 #mapView .nature-controls { flex:none; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:8px; }
 #mapView .nature-controls label { margin:0 0 6px; }
@@ -435,12 +437,24 @@
         <button id="closeSidebar" class="mobile-only" data-mt="close">Закрыть</button>
     <nav class="side-tabs" aria-label="Map tools">
       <button data-panel="resource" class="active" data-mt="resources">Ресурсы</button>
-      <button data-panel="nature" data-mt="nature">Растения</button>
+      <button data-panel="search" data-mt="search">Поиск</button>
       <button data-panel="owner" data-mt="owners">Владения</button>
-      <button data-panel="list" data-mt="list">Список</button>
       <button data-panel="plan" data-mt="plan">План</button>
     </nav>
+    <label id="searchCategoryControl" class="search-category" hidden><span data-mt="category">Категория</span><select id="searchCategory"><option value="resource" data-mt="resources">Ресурсы</option><option value="land" data-mt="terrain">Местность</option><option value="nature" data-mt="nature">Растения</option><option value="list" data-mt="list">Список</option></select></label>
+    <section id="landPanel" class="side-panel" hidden>
+      <label><span data-mt="resource">Тип клетки</span><select id="landType"></select></label>
+      <label><span data-mt="quality">Качество от, %</span><input id="landQuality" type="number" min="0" max="100" value="0"></label>
+      <label class="check"><input id="landFree" type="checkbox"><span data-mt="freeOnly">Свободные по данным скана</span></label>
+      <div class="button-row"><button id="applyLandFilter" data-mt="apply">Найти</button><button id="resetLandFilter" data-mt="reset">Сбросить</button></div>
+      <div id="landResults" hidden></div>
+    </section>
     <section id="naturePanel" class="side-panel" hidden>
+      <label><span data-mt="nature">Растения</span><select id="plantType"></select></label>
+      <label><span data-mt="quality">Качество от, %</span><input id="plantQuality" type="number" min="0" max="100" value="0"></label>
+      <label class="check"><input id="plantFree" type="checkbox"><span data-mt="freeOnly">Свободные по данным скана</span></label>
+      <div class="button-row"><button id="applyPlantFilter" data-mt="apply">Найти</button><button id="resetPlantFilter" data-mt="reset">Сбросить</button></div>
+      <div id="plantResults" hidden></div>
       <p class="muted nature-intro" data-mt="natureIntro">Деревья и растения: качество, свободные клетки и лучшие находки.</p>
       <div class="nature-controls">
         <label><span data-mt="findPlant">Найти растение</span><input id="natureSearch" type="search" autocomplete="off" placeholder="Дуб…" data-mt-placeholder="plantPlaceholder"></label>
@@ -2638,7 +2652,7 @@ const mapTools = (() => {
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const words = {
     freshOnly:['Только новые находки перескана','Only new finds of the rescan'], copyGame:['Ссылка на игру','Game link'],
-    close:['Закрыть','Close'], resources:['Ресурсы','Resources'], nature:['Растения','Plants'], natureIntro:['Деревья и растения: качество, свободные клетки и лучшие находки.','Trees and plants: quality, free cells, and best finds.'], findPlant:['Найти растение','Find a plant'], plantPlaceholder:['Дуб…','Oak…'], byCount:['По количеству','By count'], owners:['Владения','Domains'], plan:['План','Plan'], list:['Список','List'],
+    close:['Закрыть','Close'], category:['Категория','Category'], resources:['Ресурсы','Resources'], nature:['Растения','Plants'], natureIntro:['Деревья и растения: качество, свободные клетки и лучшие находки.','Trees and plants: quality, free cells, and best finds.'], findPlant:['Найти растение','Find a plant'], plantPlaceholder:['Дуб…','Oak…'], byCount:['По количеству','By count'], owners:['Владения','Domains'], plan:['План','Plan'], list:['Список','List'],
     terrain:['Местность','Terrain'], mode_terrain:['Местность','Terrain'], mode_owners:['По владельцам','By owner'], mode_resources:['Минералы','Minerals'], findOwner:['Поселение или лорд','Settlement or lord'], visibleOnly:['В видимой области','In visible area'], favoritesOnly:['Только избранное','Favorites only'],
     sort:['Сортировка','Sort'], bySize:['По площади','By area'], byName:['По названию','By name'], byDistance:['По расстоянию','By distance'], byQuality:['По качеству','By quality'],
     more:['Показать ещё','Show more'], savedPlaces:['Сохранённые места','Saved places'], variant:['Вариант плана','Plan variant'],
@@ -2649,7 +2663,8 @@ const mapTools = (() => {
     uploadImage:['Наложить изображение (PNG/JPG/WebP)','Overlay image (PNG/JPG/WebP)'], imageWidth:['Ширина в клетках','Width in cells'], rotation:['Поворот, °','Rotation, °'], opacity:['Непрозрачность','Opacity'], removeImage:['Убрать изображение','Remove image'],
     exportPng:['Экспорт PNG','Export PNG'], exportJson:['Сохранить JSON','Export JSON'], importJson:['Загрузить план JSON','Import plan JSON'],
     localPlan:['Планы сохраняются в этом браузере. Экспортируйте JSON для резервной копии. Линейка показывает геометрическое расстояние, не путь в игре.','Plans are saved in this browser. Export JSON for backup. Measurements are geometric distances, not in-game routes.'],
-    filters:['Подобрать месторождение','Find deposits'], resource:['Ресурс','Resource'], allResources:['Все ресурсы','All resources'], quality:['Качество от, %','Min quality, %'], freeOnly:['Свободные по данным скана','Free in scan data'],
+    filters:['Поиск по типу и качеству','Find by type and quality'], resource:['Тип клетки','Cell type'], allResources:['Все месторождения','All deposits'], quality:['Качество от, %','Min quality, %'], freeOnly:['Свободные по данным скана','Free in scan data'],
+    maxQuality:['Качество до, %','Max quality, %'], withinView:['Только в видимой области','Visible area only'],
     origin:['Отсчёт от координат','Reference coordinates'], radius:['Радиус, клеток (пусто — любой)','Radius in cells (empty = any)'], useCenter:['Взять центр карты','Use map center'], apply:['Найти','Find'], reset:['Сбросить','Reset'],
     share:['Поделиться','Share'], resetAll:['Сбросить всё','Reset all'], search:['Поиск','Search'], noData:['Нет данных скана','No scan data'], layers:['Слои','Layers'], copyCoords:['Копировать координаты','Copy coordinates'], openGame:['Открыть в игре','Open in game'], savePlace:['Сохранить место','Save place'], reference:['Считать расстояние отсюда','Use as reference'],
   };
@@ -2707,10 +2722,16 @@ const mapTools = (() => {
     offX=sx-(x-minX)*PT*scale; offY=sy-(y-minY)*PT*scale; render();
   }
   function closeSidebar() { document.querySelector('#mapView .sidebar').classList.remove('open'); $('openSidebar').setAttribute('aria-expanded','false'); }
-  function setPanel(panel) {
+  let searchActive=false;
+  function setPanel(panel, fromSearch=false) {
+    if(panel==='search'){searchActive=true;panel=$('searchCategory').value;}
+    else searchActive=fromSearch;
     state.panel=panel;
-    for(const name of ['resource','nature','owner','list','plan']) $(name+'Panel').hidden=name!==panel;
-    document.querySelectorAll('[data-panel]').forEach(b=>{b.classList.toggle('active',b.dataset.panel===panel);b.setAttribute('aria-pressed',String(b.dataset.panel===panel));});
+    const searching=searchActive;
+    if(searching) $('searchCategory').value=panel;
+    $('searchCategoryControl').hidden=!searching;
+    for(const name of ['resource','land','nature','owner','list','plan']) $(name+'Panel').hidden=name!==panel;
+    document.querySelectorAll('[data-panel]').forEach(b=>{const active=searching?b.dataset.panel==='search':b.dataset.panel===panel;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));});
     if(panel!=='plan') setTool('pan');
     if(panel==='owner') renderOwners();
     if(panel==='list') renderList();
@@ -2797,25 +2818,41 @@ const mapTools = (() => {
     try { await navigator.clipboard.writeText(value);notice(tr('Скопировано','Copied')); }
     catch { prompt(tr('Скопируйте текст','Copy this text'),value); }
   }
-  function filterResources() {
-    const originText=$('resourceOrigin').value.trim();
-    const origin=originText?parseCoords(originText):(reference||MAP_DATA.domain);
-    if(!origin) {notice(tr('Проверьте координаты точки отсчёта','Check reference coordinates'));return;}
-    const radiusText=$('resourceRadius').value;
-    const radius=radiusText===''?null:Number(radiusText), quality=Number($('resourceQuality').value);
-    if((radius!==null && (!Number.isFinite(radius)||radius<0)) || !Number.isFinite(quality)||quality<0||quality>100) {notice(tr('Проверьте радиус и качество','Check radius and quality'));return;}
+  function searchOptions(kind) {
+    const prefix=kind==='plant'?'plant':kind==='land'?'land':'resource';
+    const low=Number($(prefix+'Quality').value), maxText=$(prefix+'MaxQuality').value.trim(), max=maxText===''?100:Number(maxText);
+    const originText=$(prefix+'Origin').value.trim(), origin=originText?parseCoords(originText):(reference||MAP_DATA.domain);
+    const radiusText=$(prefix+'Radius').value.trim(), radius=radiusText===''?null:Number(radiusText);
+    if(!origin||!Number.isFinite(low)||!Number.isFinite(max)||low<0||max>100||low>max||(radius!==null&&(!Number.isFinite(radius)||radius<0))){notice(tr('Проверьте качество, координаты и радиус','Check quality, coordinates and radius'));return null;}
+    return {quality:low,maxQuality:max,origin,radius,visible:$(prefix+'Visible').checked,fresh:$(prefix+'Fresh').checked,sort:$(prefix+'Sort').value};
+  }
+  function matchesSearch(p, options, bounds, fresh) {
+    return p[3]>=options.quality&&p[3]<=options.maxQuality&&(!options.free||p[4]===0)&&(!options.visible||(p[0]>=bounds[0]&&p[0]<=bounds[2]&&p[1]>=bounds[1]&&p[1]<=bounds[3]))&&(!fresh||fresh.has(pointKey(p)));
+  }
+  function filterResources(kind='resource') {
+    const options=searchOptions(kind);if(!options)return;
+    const {origin,radius}=options;
     reference=origin;
-    filter={code:$('resourceType').value,quality,free:$('resourceFree').checked,origin,radius,sort:$('resourceSort').value};
-    const indexes=MAP_DATA.types.map((t,i)=>t.mineral && (!filter.code||t.code===filter.code)?i:-1).filter(i=>i>=0);
+    filter={kind,code:$(kind==='land'?'landType':'resourceType').value,...options,free:$(kind==='land'?'landFree':'resourceFree').checked};
+    const bounds=viewBounds(),fresh=filter.fresh?window.getFreshSet():null;
+    const indexes=MAP_DATA.types.map((t,i)=>(filter.code?t.code===filter.code:t.mineral)?i:-1).filter(i=>i>=0);
     results=[];
     for(const index of indexes) for(const p of pointsByType[index]) {
-      if(p[3]<quality || (filter.free && p[4]!==0)) continue;
+      if(!matchesSearch(p,filter,bounds,fresh)) continue;
       const distance=MapGeometry.distance(p,origin);
       if(radius===null || distance<=radius) results.push({p,distance});
     }
     results.sort((a,b)=>filter.sort==='quality'?b.p[3]-a.p[3]||a.distance-b.distance:a.distance-b.distance||b.p[3]-a.p[3]);
     resultSet=new Set(results.map(r=>pointKey(r.p))); resourceLimit=80;state.resourceFilterActive=true;selected=null;selectedOwnerKey=null;picked=null;$('objectCard').hidden=true;
-    setMode('resources');renderResourceResults();updateLegendActive();
+    setMode(kind==='land'?'terrain':'resources');renderResourceResults();updateLegendActive();
+  }
+  function filterPlants() {
+    const code=$('plantType').value, options=searchOptions('plant');if(!options||!code){if(!code)notice(tr('Выберите растение','Choose a plant'));return;}
+    const {origin,radius}=options, rows=window.getPlantData?.()[code]||[], bounds=viewBounds();
+    filter={kind:'plant',code,...options,free:$('plantFree').checked};const fresh=filter.fresh?window.getFreshSet():null;results=[];
+    for(let i=0;i<rows.length;i+=4){const p=pointByCoord.get(rows[i]+','+rows[i+1]);if(!p)continue;const item=[...p];item[3]=rows[i+2];item[4]=rows[i+3];item[5]=window.objTypeName(code);const distance=MapGeometry.distance(item,origin);if(!matchesSearch(item,filter,bounds,fresh)||(radius!==null&&distance>radius))continue;results.push({p:item,distance});}
+    results.sort((a,b)=>filter.sort==='quality'?b.p[3]-a.p[3]||a.distance-b.distance:a.distance-b.distance);resultSet=new Set(results.map(r=>pointKey(r.p)));resourceLimit=80;state.resourceFilterActive=true;state.plant=null;selected=null;selectedOwnerKey=null;picked=null;$('objectCard').hidden=true;
+    setMode('terrain');renderResourceResults();updateLegendActive();
   }
   const gameUrl=(x,y)=>'https://www.landsoflords.com/map/'+String(Math.abs(x)).padStart(5,'0')+(x>=0?'E':'W')+String(Math.abs(y)).padStart(5,'0')+(y<=0?'N':'S');
   function buildListOptions() {
@@ -2872,7 +2909,7 @@ const mapTools = (() => {
     $('natureResults').querySelectorAll('[data-nature-list]').forEach(list=>list.addEventListener('scroll',()=>{if(list.scrollTop+list.clientHeight>=list.scrollHeight-80)fillNatureCells(list);},{passive:true}));
     requestAnimationFrame(()=>$('natureResults').querySelectorAll('[data-plant-icon]').forEach(c=>{const g=c.getContext('2d');g.scale(2,2);drawTree(g,c.dataset.plantIcon,0,0,36);}));
   }
-  window.refreshListOptions=()=>{buildListOptions();if(state.panel==='list')renderList();if(state.panel==='nature')renderNature();};
+  window.refreshListOptions=()=>{buildListOptions();const current=$('plantType').value;$('plantType').innerHTML=Object.keys(window.getPlantData?.()||{}).sort((a,b)=>window.objTypeName(a).localeCompare(window.objTypeName(b))).map(code=>`<option value="${esc(code)}">${esc(window.objTypeName(code))}</option>`).join('');if([...$('plantType').options].some(o=>o.value===current))$('plantType').value=current;if(state.panel==='list')renderList();if(state.panel==='nature')renderNature();};
   window.refreshObjectCard=()=>{if(picked)showCard();};
   let listRows=[], listLimit=100;
   function renderList() {
@@ -2900,15 +2937,16 @@ const mapTools = (() => {
     if($('moreList')) $('moreList').onclick=()=>{listLimit+=100;drawList();};
   }
   function renderResourceResults() {
-    $('resourceResults').hidden=!state.resourceFilterActive;
+    const target=filter?.kind==='land'?'landResults':filter?.kind==='plant'?'plantResults':'resourceResults';
+    for(const id of ['resourceResults','landResults','plantResults']) $(id).hidden=!state.resourceFilterActive||id!==target;
     if(!state.resourceFilterActive) return;
-    $('resourceResults').innerHTML=`<p class="muted">${tr('Найдено клеток: ','Cells found: ')}${fmtNum(results.length)}. ${tr('Расстояния по прямой.','Straight-line distances.')}</p>`+results.slice(0,resourceLimit).map(({p,distance})=>`<button class="result-main" data-resource-cell="${p[0]},${p[1]}" style="width:100%;margin-bottom:4px">${esc(typeName(MAP_DATA.types[p[2]]))} · ${p[3]}%<small>${formatCoords(p[0],p[1])} · ${distance.toFixed(1)} ${tr('кл.','cells')}</small></button>`).join('')+(results.length>resourceLimit?`<button id="moreResources">${label('more')}</button>`:'');
+    $(target).innerHTML=`<p class="muted">${tr('Найдено клеток: ','Cells found: ')}${fmtNum(results.length)}. ${tr('Расстояния по прямой.','Straight-line distances.')}</p>`+results.slice(0,resourceLimit).map(({p,distance})=>`<button class="result-main" data-resource-cell="${p[0]},${p[1]}" style="width:100%;margin-bottom:4px">${esc(filter?.kind==='plant'?p[5]:typeName(MAP_DATA.types[p[2]]))} · ${p[3]}%<small>${formatCoords(p[0],p[1])} · ${distance.toFixed(1)} ${tr('кл.','cells')}</small></button>`).join('')+(results.length>resourceLimit?`<button id="moreResources">${label('more')}</button>`:'');
     if($('moreResources')) $('moreResources').onclick=()=>{resourceLimit+=80;renderResourceResults();};
   }
   function clearFilter() {state.resourceFilterActive=false;filter=null;results=[];resultSet.clear();renderResourceResults();render();}
   function drawResourceResults(w,h,size) {
     resourceHits=[];
-    if(!showResourceMarkers) return;
+    if(!showResourceMarkers&&!state.resourceFilterActive) return;
     const cellSize=Math.max(64,2**Math.round(Math.log2(52/size)));
     // Cache groups in world coordinates; panning must not change their counts.
     const source=state.resourceFilterActive?results:pointsByType;
@@ -3085,7 +3123,12 @@ const mapTools = (() => {
       const ref=pair(params.get('ref'));if(ref.length===2&&ref.every(Number.isFinite)){reference=ref;$('resourceOrigin').value=formatCoords(...ref);}
       const f=JSON.parse(params.get('filter')||'null');
       if(f&&Array.isArray(f.origin)&&f.origin.length===2&&f.origin.every(Number.isFinite)) {
-        $('resourceType').value=f.code||'';$('resourceQuality').value=f.quality;$('resourceFree').checked=!!f.free;$('resourceOrigin').value=formatCoords(...f.origin);$('resourceRadius').value=f.radius??'';$('resourceSort').value=f.sort==='quality'?'quality':'distance';filterResources();
+        $('resourceOrigin').value=formatCoords(...f.origin);
+        const prefix=f.kind==='land'?'land':f.kind==='plant'?'plant':'resource';
+        $(prefix+'Origin').value=formatCoords(...f.origin);$(prefix+'Radius').value=f.radius??'';$(prefix+'MaxQuality').value=f.maxQuality??'';$(prefix+'Visible').checked=!!f.visible;$(prefix+'Fresh').checked=!!f.fresh;$(prefix+'Sort').value=f.sort==='quality'?'quality':'distance';
+        if(f.kind==='land'){$('landType').value=f.code;$('landQuality').value=f.quality;$('landFree').checked=!!f.free;setPanel('land',true);filterResources('land');}
+        else if(f.kind==='plant'){setPanel('nature',true);$('plantType').value=f.code;$('plantQuality').value=f.quality;$('plantFree').checked=!!f.free;filterPlants();}
+        else {$('resourceType').value=f.code||'';$('resourceQuality').value=f.quality;$('resourceFree').checked=!!f.free;$('resourceRadius').value=f.radius??'';$('resourceSort').value=f.sort==='quality'?'quality':'distance';filterResources();}
       }
       const ti=MAP_DATA.types.findIndex(t=>t.code===params.get('type'));selected=ti<0?null:ti;
       const ownerIdx=MAP_DATA.owners.indexOf(params.get('owner'));if(ownerIdx>0)pickOwner(ownerIdx,false);
@@ -3222,7 +3265,8 @@ const mapTools = (() => {
     document.querySelectorAll('[data-mt-placeholder]').forEach(el=>el.placeholder=label(el.dataset.mtPlaceholder));
     $('miniMap').setAttribute('aria-label',tr('Обзор континента: нажмите для перехода','Continent overview: click to navigate'));
     $('resourceType').options[0].textContent=label('allResources');for(const option of [...$('resourceType').options].slice(1)){const t=MAP_DATA.types.find(t=>t.code===option.value);if(t)option.textContent=typeName(t);}
-    buildListOptions();
+    for(const option of $('landType').options){const t=MAP_DATA.types.find(t=>t.code===option.value);if(t)option.textContent=typeName(t);}
+    window.refreshListOptions();
     if(state.panel==='list') renderList();
     if(state.panel==='nature') renderNature();
     renderOwners();renderResourceResults();showCard();const pending=draft;setTool(state.tool);draft=pending;render();
@@ -3241,19 +3285,28 @@ const mapTools = (() => {
       return {...m,lord:lords[m.name]||'',bounds:b};
     });
     $('resourceType').innerHTML=`<option value="">${label('allResources')}</option>`+MAP_DATA.types.filter(t=>t.mineral).map(t=>`<option value="${esc(t.code)}">${esc(typeName(t))}</option>`).join('');
+    $('landType').innerHTML=MAP_DATA.types.map(t=>`<option value="${esc(t.code)}">${esc(typeName(t))}</option>`).join('');
     $('listType').value='';buildListOptions();$('listQuality').value='0';$('listFree').checked=true;$('listFresh').checked=false;listLimit=100;
     $('natureSearch').value='';$('natureSort').value='quality';
     $('resourceOrigin').value=formatCoords(...reference);$('objectCard').hidden=true;$('resourceResults').hidden=true;
     $('ownerSearch').value='';ownerLimit=80;$('resourceQuality').value='0';$('resourceRadius').value='';$('resourceFree').checked=true;$('resourceSort').value='distance';
-    state.ready=true;if(!plans.length)newPlan();else{loadOverlay();updatePlanUI();}
+    state.ready=true;window.refreshListOptions();if(!plans.length)newPlan();else{loadOverlay();updatePlanUI();}
     setTool('pan');syncLayers();renderOwners();
   }
   // Static controls are inserted once so language changes preserve form values and focus.
   canvas.parentElement.insertAdjacentHTML('beforeend','<div id="heraldLayer" aria-hidden="true"></div>');
   canvas.parentElement.insertAdjacentHTML('beforeend',`<div class="map-controls"><button id="openSidebar" class="mobile-only" aria-expanded="false">${span('search')}</button><div class="mode-group">${['terrain','owners','resources'].map(m=>`<button data-mode="${m}" class="${m==='terrain'?'active':''}">${span('mode_'+m)}</button>`).join('')}</div><button id="quickMeasure" aria-label="${label('measure')}" title="${label('measure')}" aria-pressed="false"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 16 16 3l5 5L8 21zM13 6l3 3M10 9l2 2M7 12l3 3M4 15l2 2"/></svg></button><span class="spacer"></span><button id="shareMap">${span('share')}</button></div><aside id="objectCard" class="object-card" hidden aria-live="polite"></aside><canvas id="miniMap" width="308" height="224" tabindex="0"></canvas><div id="mapScale"><span id="scaleText"></span><span id="scaleBar"></span></div><div id="unknownKey">${span('noData')}</div><div id="mapNotice" role="status" hidden></div>`);
   canvas.parentElement.insertAdjacentHTML('beforeend',`<div id="drawingActions" hidden><strong id="drawingToolName"></strong><select id="measureMode" aria-label="${label('measureMode')}" hidden><option value="straight" data-mt="measureStraight">${label('measureStraight')}</option><option value="grid" data-mt="measureGrid">${label('measureGrid')}</option></select><button id="finishDrawing">${span('finish')}</button><button id="undoDrawing">${span('undo')}</button><button id="cancelDrawing">${span('pan')}</button><output id="drawingMeasurement" aria-live="polite"></output></div>`);
-  $('resourcePanel').insertAdjacentHTML('afterbegin',`<details class="resource-filters" id="resourceFilterDetails"><summary>${span('filters')}</summary><label>${span('resource')}<select id="resourceType"></select></label><div class="filter-pair"><label>${span('quality')}<input id="resourceQuality" type="number" min="0" max="100" value="0"></label><label>${span('sort')}<select id="resourceSort"><option value="distance" data-mt="byDistance">По расстоянию</option><option value="quality" data-mt="byQuality">По качеству</option></select></label></div><label class="check"><input id="resourceFree" type="checkbox" checked>${span('freeOnly')}</label><label>${span('origin')}<input id="resourceOrigin"></label><button id="useMapCenter">${span('useCenter')}</button><label>${span('radius')}<input id="resourceRadius" type="number" min="0" step="1"></label><div class="button-row"><button id="applyResourceFilter">${span('apply')}</button><button id="resetResourceFilter">${span('reset')}</button></div></details><div id="resourceResults" hidden></div>`);
+  $('resourcePanel').insertAdjacentHTML('afterbegin',`<details class="resource-filters" id="resourceFilterDetails" open><summary>${span('filters')}</summary><label>${span('resource')}<select id="resourceType"></select></label><div class="filter-pair"><label>${span('quality')}<input id="resourceQuality" type="number" min="0" max="100" value="0"></label><label>${span('sort')}<select id="resourceSort"><option value="distance" data-mt="byDistance">По расстоянию</option><option value="quality" data-mt="byQuality">По качеству</option></select></label></div><label class="check"><input id="resourceFree" type="checkbox" checked>${span('freeOnly')}</label><label>${span('origin')}<input id="resourceOrigin"></label><button id="useMapCenter">${span('useCenter')}</button><label>${span('radius')}<input id="resourceRadius" type="number" min="0" step="1"></label><div class="button-row"><button id="applyResourceFilter">${span('apply')}</button><button id="resetResourceFilter">${span('reset')}</button></div></details><div id="resourceResults" hidden></div>`);
+  for(const [kind,button] of [['resource','applyResourceFilter'],['land','applyLandFilter'],['plant','applyPlantFilter']]) {
+    const container=$(button).parentElement;
+    const common=`<label>${span('maxQuality')}<input id="${kind}MaxQuality" type="number" min="0" max="100" placeholder="100"></label><label class="check"><input id="${kind}Visible" type="checkbox">${span('withinView')}</label><label class="check"><input id="${kind}Fresh" type="checkbox">${span('freshOnly')}</label>`;
+    const extra=kind==='resource'?'':`<label>${span('sort')}<select id="${kind}Sort"><option value="distance" data-mt="byDistance">${label('byDistance')}</option><option value="quality" data-mt="byQuality">${label('byQuality')}</option></select></label><label>${span('origin')}<input id="${kind}Origin" placeholder="${tr('Центр карты','Map center')}"></label><button type="button" id="${kind}UseCenter">${span('useCenter')}</button><label>${span('radius')}<input id="${kind}Radius" type="number" min="0" step="1"></label>`;
+    container.insertAdjacentHTML('beforebegin',common+extra);
+    if(kind!=='resource')$(kind+'UseCenter').onclick=()=>{$(kind+'Origin').value=formatCoords(...snap(center()));};
+  }
   document.querySelectorAll('[data-panel]').forEach(b=>b.onclick=()=>setPanel(b.dataset.panel));
+  $('searchCategory').onchange=()=>setPanel($('searchCategory').value,true);
   document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
   document.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>{setTool(b.dataset.tool);if(b.dataset.tool!=='pan')closeSidebar();});
   $('openSidebar').onclick=()=>{document.querySelector('#mapView .sidebar').classList.add('open');$('openSidebar').setAttribute('aria-expanded','true');};$('closeSidebar').onclick=closeSidebar;
@@ -3269,7 +3322,9 @@ const mapTools = (() => {
     if(b.dataset.place!==undefined){const p=places[Number(b.dataset.place)];pickCell(p.x,p.y,true);}
     if(b.dataset.removePlace!==undefined){places.splice(Number(b.dataset.removePlace),1);write(key('places'),places);renderOwners();}
   };
-  $('applyResourceFilter').onclick=filterResources;$('resetResourceFilter').onclick=clearFilter;
+  $('applyResourceFilter').onclick=()=>filterResources();$('resetResourceFilter').onclick=clearFilter;
+  $('applyLandFilter').onclick=()=>filterResources('land');$('resetLandFilter').onclick=clearFilter;
+  $('applyPlantFilter').onclick=filterPlants;$('resetPlantFilter').onclick=clearFilter;
   $('useMapCenter').onclick=()=>{$('resourceOrigin').value=formatCoords(...snap(center()));};
   $('listResults').onclick=e=>{const b=e.target.closest('[data-resource-cell]');if(b)pickCell(...b.dataset.resourceCell.split(',').map(Number),true);};
   $('natureResults').onclick=e=>{const b=e.target.closest('[data-resource-cell]');if(b){e.preventDefault();pickCell(...b.dataset.resourceCell.split(',').map(Number),true);}};
@@ -3277,6 +3332,8 @@ const mapTools = (() => {
   $('listResults').addEventListener('click',e=>{const b=e.target.closest('[data-copy-game]'); if(!b) return; const [x,y]=b.dataset.copyGame.split(',').map(Number); copyText(gameUrl(x,y)); notice(tr('Ссылка на игру скопирована','Game link copied'));});
   for(const id of ['listType','listQuality','listFree','listFresh']) $(id).addEventListener(id==='listQuality'?'input':'change',()=>{listLimit=100;renderList();});
   $('resourceResults').onclick=e=>{const b=e.target.closest('[data-resource-cell]');if(b)pickCell(...b.dataset.resourceCell.split(',').map(Number),true);};
+  $('landResults').onclick=e=>{const b=e.target.closest('[data-resource-cell]');if(b)pickCell(...b.dataset.resourceCell.split(',').map(Number),true);};
+  $('plantResults').onclick=e=>{const b=e.target.closest('[data-resource-cell]');if(b)pickCell(...b.dataset.resourceCell.split(',').map(Number),true);};
   // «Сбросить» возвращает карту в исходное состояние целиком: режим «Местность», слои по умолчанию, без фильтра и выбора.
   $('resetBtn').addEventListener('click',()=>{
     picked=null;$('objectCard').hidden=true;
