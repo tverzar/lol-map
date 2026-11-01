@@ -2838,7 +2838,7 @@ const mapTools = (() => {
     reference=origin;
     filter={kind,code:$(kind==='land'?'landType':'resourceType').value,...options,free:$(kind==='land'?'landFree':'resourceFree').checked};
     const bounds=viewBounds(),fresh=filter.fresh?window.getFreshSet():null;
-    const indexes=MAP_DATA.types.map((t,i)=>(filter.code?t.code===filter.code:t.mineral)?i:-1).filter(i=>i>=0);
+    const indexes=MAP_DATA.types.map((t,i)=>((kind==='land'?!t.mineral:t.mineral)&&(!filter.code||t.code===filter.code))?i:-1).filter(i=>i>=0);
     results=[];
     for(const index of indexes) for(const p of pointsByType[index]) {
       if(!matchesSearch(p,filter,bounds,fresh)) continue;
@@ -3288,7 +3288,7 @@ const mapTools = (() => {
       return {...m,lord:lords[m.name]||'',bounds:b};
     });
     $('resourceType').innerHTML=`<option value="">${label('allResources')}</option>`+MAP_DATA.types.filter(t=>t.mineral).map(t=>`<option value="${esc(t.code)}">${esc(typeName(t))}</option>`).join('');
-    $('landType').innerHTML=MAP_DATA.types.map(t=>`<option value="${esc(t.code)}">${esc(typeName(t))}</option>`).join('');
+    $('landType').innerHTML=MAP_DATA.types.filter(t=>!t.mineral).map(t=>`<option value="${esc(t.code)}">${esc(typeName(t))}</option>`).join('');
     $('listType').value='';buildListOptions();$('listQuality').value='0';$('listFree').checked=true;$('listFresh').checked=false;listLimit=100;
     $('natureSearch').value='';$('natureSort').value='quality';
     $('resourceOrigin').value=formatCoords(...reference);$('objectCard').hidden=true;$('resourceResults').hidden=true;
