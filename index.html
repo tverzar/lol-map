@@ -3464,16 +3464,17 @@ hideLoadingOverlay();
     const pct = Math.min(100, processed / total * 100);
     const fmt = new Intl.NumberFormat(pick('ru-RU','en-US'));
     const state = stale ? pick('нет свежих данных','stale') : d.state === 'complete' ? pick('завершён','complete') : d.state === 'running' ? pick('идёт','running') : pick('остановлен','stopped');
-    summary.textContent = pick('Скан Орентии: ', 'Orentia scan: ') + (stale ? state : pct.toFixed(1) + '%');
-    title.textContent = pick('Полный перескан: ', 'Full rescan: ') + state;
+    const stage = d.phase === 'fog' ? pick('туман и побережье', 'fog and coast') : d.phase === 'new_cells' ? pick('новые клетки', 'new cells') : d.phase === 'preparing' ? pick('переход к туману', 'preparing fog pass') : d.phase === 'complete' ? pick('все этапы завершены', 'all stages complete') : pick('известные клетки', 'known cells');
+    summary.textContent = pick('Скан Орентии: ', 'Orentia scan: ') + (stale ? state : d.phase === 'fog' || d.phase === 'preparing' ? stage : pct.toFixed(1) + '%');
+    title.textContent = pick('Общий скан — ', 'Scan — ') + stage + ': ' + state;
     progress.value = pct;
     progress.setAttribute('aria-label', pick('Прогресс сканирования', 'Scan progress'));
-    count.textContent = fmt.format(processed) + ' / ' + fmt.format(total) + pick(' клеток', ' cells');
+    count.textContent = d.phase === 'fog' ? pick('Проверено примерно: ', 'Approximately checked: ') + fmt.format(processed) + pick(' · в очереди: ', ' · queued: ') + fmt.format(Number(d.queue) || 0) : fmt.format(processed) + ' / ' + fmt.format(total) + pick(' клеток на этапе', ' cells in stage');
     const seconds = Number(d.eta_seconds);
     if (!stale && d.state === 'running' && Number.isFinite(seconds) && seconds > 0) {
       const minutes = Math.max(1, Math.round(seconds / 60));
-      eta.textContent = pick('Осталось примерно: ', 'Estimated remaining: ') + Math.floor(minutes / 60) + pick(' ч ', ' h ') + (minutes % 60) + pick(' мин', ' min');
-    } else eta.textContent = d.state === 'running' ? pick('Оценка времени уточняется.', 'Estimating remaining time.') : '';
+      eta.textContent = pick('Осталось на этот этап примерно: ', 'Estimated remaining in this stage: ') + Math.floor(minutes / 60) + pick(' ч ', ' h ') + (minutes % 60) + pick(' мин', ' min');
+    } else eta.textContent = d.state === 'running' ? pick('Общее время зависит от новых клеток и тумана.', 'Total time depends on newly discovered cells and fog.') : '';
     time.textContent = Number.isFinite(updated) ? pick('Последняя отметка: ', 'Last checkpoint: ') + new Date(updated).toLocaleString(pick('ru-RU','en-US')) : '';
   }
   async function refresh() {
