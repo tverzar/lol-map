@@ -3431,3 +3431,64 @@ hideLoadingOverlay();
   console.error(error);
 });
 </script>
+
+<script>
+/* Public counters only; map data stays on the existing release. */
+(() => {
+  const url = 'https://api.github.com/gists/1a4ac0e3dd3550368a03de52b5006a12';
+  const bar = document.querySelector('.topbar-right');
+  if (!bar) return;
+  const style = document.createElement('style');
+  style.textContent = '.scan-live{position:relative;color:#e3e8e4;font:12px system-ui,sans-serif}.scan-live summary{cursor:pointer;white-space:nowrap;padding:6px 8px;border:1px solid #6b8f5a;border-radius:6px;background:#192720;list-style:none}.scan-live summary::-webkit-details-marker{display:none}.scan-live-body{position:absolute;right:0;top:calc(100% + 8px);z-index:100;width:min(300px,85vw);box-sizing:border-box;background:#151e25;border:1px solid #6b8f5a;border-radius:8px;padding:12px;box-shadow:0 8px 25px #0008;line-height:1.5}.scan-live-body p{margin:4px 0}.scan-live-body progress{width:100%;accent-color:#91b877}.scan-live-muted{color:#acb8c1;font-size:11px}@media(max-width:760px){.scan-live{font-size:11px}.scan-live summary{padding:5px}}';
+  document.head.appendChild(style);
+  const root = document.createElement('details');
+  root.className = 'scan-live';
+  root.innerHTML = '<summary></summary><div class="scan-live-body" role="status"><p class="scan-live-title"></p><progress max="100" value="0"></progress><p class="scan-live-count"></p><p class="scan-live-eta"></p><p class="scan-live-muted scan-live-time"></p></div>';
+  bar.prepend(root);
+  const pick = (ru, en) => localStorage.getItem('lolsite.lang') === 'en' ? en : ru;
+  const summary = root.querySelector('summary');
+  const title = root.querySelector('.scan-live-title');
+  const count = root.querySelector('.scan-live-count');
+  const eta = root.querySelector('.scan-live-eta');
+  const time = root.querySelector('.scan-live-time');
+  const progress = root.querySelector('progress');
+  let snapshot = null;
+  const unavailable = () => { summary.textContent = pick('Скан: нет данных', 'Scan: unavailable'); title.textContent = pick('Не удалось получить статус скана.', 'Scan status is unavailable.'); count.textContent = ''; eta.textContent = ''; time.textContent = ''; };
+  function render() {
+    if (!snapshot) return unavailable();
+    const d = snapshot;
+    const processed = Number(d.processed), total = Number(d.total);
+    if (!Number.isFinite(processed) || !Number.isFinite(total) || total <= 0 || processed < 0 || processed > total) return unavailable();
+    const observed = Date.parse(d.checked_at), updated = Date.parse(d.log_updated_at);
+    const stale = !Number.isFinite(observed) || Date.now() - observed > 20 * 60 * 1000 || (d.state === 'running' && (!Number.isFinite(updated) || Date.now() - updated > 25 * 60 * 1000));
+    const pct = Math.min(100, processed / total * 100);
+    const fmt = new Intl.NumberFormat(pick('ru-RU','en-US'));
+    const state = stale ? pick('нет свежих данных','stale') : d.state === 'complete' ? pick('завершён','complete') : d.state === 'running' ? pick('идёт','running') : pick('остановлен','stopped');
+    summary.textContent = pick('Скан Орентии: ', 'Orentia scan: ') + (stale ? state : pct.toFixed(1) + '%');
+    title.textContent = pick('Полный перескан: ', 'Full rescan: ') + state;
+    progress.value = pct;
+    progress.setAttribute('aria-label', pick('Прогресс сканирования', 'Scan progress'));
+    count.textContent = fmt.format(processed) + ' / ' + fmt.format(total) + pick(' клеток', ' cells');
+    const seconds = Number(d.eta_seconds);
+    if (!stale && d.state === 'running' && Number.isFinite(seconds) && seconds > 0) {
+      const minutes = Math.max(1, Math.round(seconds / 60));
+      eta.textContent = pick('Осталось примерно: ', 'Estimated remaining: ') + Math.floor(minutes / 60) + pick(' ч ', ' h ') + (minutes % 60) + pick(' мин', ' min');
+    } else eta.textContent = d.state === 'running' ? pick('Оценка времени уточняется.', 'Estimating remaining time.') : '';
+    time.textContent = Number.isFinite(updated) ? pick('Последняя отметка: ', 'Last checkpoint: ') + new Date(updated).toLocaleString(pick('ru-RU','en-US')) : '';
+  }
+  async function refresh() {
+    try {
+      const response = await fetch(url, {cache:'no-store', headers:{Accept:'application/vnd.github+json'}});
+      if (!response.ok) throw new Error('status');
+      const gist = await response.json();
+      snapshot = JSON.parse(gist.files['scan-status.json'].content);
+      render();
+    } catch (_) { if (snapshot) render(); else unavailable(); }
+  }
+  document.getElementById('langSwitch')?.addEventListener('click', () => setTimeout(render, 0));
+  unavailable();
+  refresh();
+  setInterval(refresh, 5 * 60 * 1000);
+})();
+
+</script>
