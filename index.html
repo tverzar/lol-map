@@ -3435,7 +3435,8 @@ hideLoadingOverlay();
 <script>
 /* Public counters only; map data stays on the existing release. */
 (() => {
-  const url = 'https://api.github.com/gists/1a4ac0e3dd3550368a03de52b5006a12';
+  const rawUrl = 'https://gist.githubusercontent.com/tverzar/1a4ac0e3dd3550368a03de52b5006a12/raw/scan-status.json';
+  const apiUrl = 'https://api.github.com/gists/1a4ac0e3dd3550368a03de52b5006a12';
   const bar = document.querySelector('.topbar-right');
   if (!bar) return;
   const style = document.createElement('style');
@@ -3478,13 +3479,23 @@ hideLoadingOverlay();
     time.textContent = Number.isFinite(updated) ? pick('Последняя отметка: ', 'Last checkpoint: ') + new Date(updated).toLocaleString(pick('ru-RU','en-US')) : '';
   }
   async function refresh() {
-    try {
-      const response = await fetch(url, {cache:'no-store', headers:{Accept:'application/vnd.github+json'}});
-      if (!response.ok) throw new Error('status');
-      const gist = await response.json();
-      snapshot = JSON.parse(gist.files['scan-status.json'].content);
-      render();
-    } catch (_) { if (snapshot) render(); else unavailable(); }
+    for (const [url, api] of [[rawUrl, false], [apiUrl, true]]) {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 8000);
+        let response;
+        try { response = await fetch(url, {cache:'no-store', signal:controller.signal}); }
+        finally { clearTimeout(timeout); }
+        if (!response.ok) throw new Error('status');
+        const data = await response.json();
+        const next = api ? JSON.parse(data.files['scan-status.json'].content) : data;
+        if (!next || !Number.isFinite(Number(next.total)) || !Number.isFinite(Number(next.processed))) throw new Error('invalid status');
+        snapshot = next;
+        render();
+        return;
+      } catch (_) { /* Try the independent fallback. */ }
+    }
+    if (snapshot) render(); else unavailable();
   }
   document.getElementById('langSwitch')?.addEventListener('click', () => setTimeout(render, 0));
   unavailable();
