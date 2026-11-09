@@ -2069,7 +2069,7 @@ function drawBuildings(viewW, viewH, size, dim) {
 let TREES = {};
 let PLANTS = {}, FRESH = {}, freshSetCache = {}, plantQualityIndex = {};
 fetch("plants.json").then(r => r.ok ? r.json() : {}).then(j => { PLANTS = j; plantQualityIndex = {}; if (window.refreshListOptions) window.refreshListOptions(); if (window.refreshObjectCard) window.refreshObjectCard(); }).catch(() => {});
-fetch("fresh.json").then(r => r.ok ? r.json() : {}).then(j => { FRESH = j; freshSetCache = {}; if (window.refreshListOptions) window.refreshListOptions(); }).catch(() => {});
+fetch("fresh.json").then(r => r.ok ? r.json() : {}).then(j => { FRESH = j; freshSetCache = {}; if (window.refreshListOptions) window.refreshListOptions(); if (window.refreshFogLive) window.refreshFogLive(); }).catch(() => {});
 fetch("trees.json").then(r => r.ok ? r.json() : {}).then(j => { TREES = j; objCache = {}; render(); }).catch(() => {});
 const MOUNTAIN_STYLE = {
   limeston:["#cbc4af","#8d866f"], basalt:["#575762","#2a2a32"], sandston:["#d3a465","#8f6a38"],
@@ -2166,19 +2166,19 @@ document.getElementById("legendHead").addEventListener("click", () => {
   try { localStorage.setItem("lolsite.legend", shut ? "0" : "1"); } catch (e) {}
 });
 
-// Visual-only preview of scan coordinates absent from the published map.
+// Highlight the latest published discoveries and live, not-yet-published cells.
 const fogLive = (() => {
   const rawUrl = 'https://gist.githubusercontent.com/tverzar/1a4ac0e3dd3550368a03de52b5006a12/raw/fog-live.json';
   const apiUrl = 'https://api.github.com/gists/1a4ac0e3dd3550368a03de52b5006a12';
   let coords = null, raster = null, rasterMap = null, originX = 0, originY = 0, count = 0;
-  let enabled = true, stamp = null, controls = null;
+  let enabled = true, stamp = null, controls = null, hasData = false;
   const tr = (ru,en) => currentLang === 'en' ? en : ru;
   function updateLabel() {
     if (!controls) return;
     const isOrentia = ALL_DATA.continents[currentContinentIdx]?.key === 'orentia';
     controls.root.hidden = !isOrentia;
-    controls.summary.textContent = coords ? tr('Новые клетки: ', 'New cells: ') + count.toLocaleString(currentLang === 'en' ? 'en-US' : 'ru-RU') : tr('Новые клетки: загрузка', 'New cells: loading');
-    controls.description.textContent = tr('Золотым показаны клетки текущего скана, отсутствующие на опубликованной карте. Предварительный слой виден в режиме «Местность».', 'Gold marks current scan cells absent from the published map. This preliminary overlay is shown in Terrain mode.');
+    controls.summary.textContent = hasData ? tr('Новые клетки: ', 'New cells: ') + count.toLocaleString(currentLang === 'en' ? 'en-US' : 'ru-RU') : tr('Новые клетки: загрузка', 'New cells: loading');
+    controls.description.textContent = tr('Золотым показаны новые клетки последнего обновления и текущего скана. Новые результаты предварительные. Слой виден в режиме «Местность».', 'Gold marks new cells from the latest map update and the ongoing scan. Live results are preliminary. Shown in Terrain mode.');
     const stale = stamp && Date.now() - Date.parse(stamp) > 20 * 60 * 1000;
     controls.time.textContent = stamp ? (stale ? tr('Последние данные устарели: ', 'Last data is stale: ') : tr('Последняя запись: ', 'Last saved: ')) + new Date(stamp).toLocaleString(currentLang === 'en' ? 'en-US' : 'ru-RU') : tr('Ожидание данных…', 'Waiting for data…');
   }
@@ -2186,11 +2186,22 @@ const fogLive = (() => {
     rasterMap = MAP_DATA;
     raster = null;
     count = 0;
-    if (!coords || ALL_DATA.continents[currentContinentIdx]?.key !== 'orentia') return;
-    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
-    for (let i=0; i<coords.length; i+=2) {
+    if (ALL_DATA.continents[currentContinentIdx]?.key !== 'orentia') return;
+    const points = [];
+    const published = window.getFreshSet ? window.getFreshSet() : new Set();
+    for (const key of published) {
+      if (!pointByCoord.has(key)) continue;
+      const pair=key.split(',').map(Number);
+      if (pair.length===2 && pair.every(Number.isFinite)) points.push(pair[0],pair[1]);
+    }
+    if (coords) for(let i=0;i<coords.length;i+=2) {
       const x=coords[i], y=coords[i+1];
-      if (pointByCoord.has(x+','+y)) continue;
+      if (!pointByCoord.has(x+','+y)) points.push(x,y);
+    }
+    hasData = Boolean(coords) || published.size > 0;
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (let i=0; i<points.length; i+=2) {
+      const x=points[i], y=points[i+1];
       count++; x0=Math.min(x0,x); x1=Math.max(x1,x); y0=Math.min(y0,y); y1=Math.max(y1,y);
     }
     if (!count) { updateLabel(); return; }
@@ -2198,8 +2209,8 @@ const fogLive = (() => {
     if (width>8192 || height>8192 || width*height>25000000) throw new Error('fog overlay dimensions');
     const layer=document.createElement('canvas'); layer.width=width; layer.height=height;
     const g=layer.getContext('2d'); const image=g.createImageData(width,height);
-    for(let i=0;i<coords.length;i+=2){
-      const x=coords[i], y=coords[i+1]; if(pointByCoord.has(x+','+y)) continue;
+    for(let i=0;i<points.length;i+=2){
+      const x=points[i], y=points[i+1];
       const n=((y-y0)*width+x-x0)*4;
       image.data[n]=255; image.data[n+1]=203; image.data[n+2]=74; image.data[n+3]=235;
     }
@@ -2209,7 +2220,7 @@ const fogLive = (() => {
   function draw() {
     const isOrentia=ALL_DATA.continents[currentContinentIdx]?.key === 'orentia';
     if (controls) controls.root.hidden=!isOrentia;
-    if (!enabled || !coords || !isOrentia || mapTools.mode !== 'terrain') return;
+    if (!enabled || !isOrentia || mapTools.mode !== 'terrain') return;
     if (rasterMap !== MAP_DATA) rebuild();
     if (!raster) return;
     const [x,y]=worldToScreen(originX,originY);
@@ -2235,7 +2246,7 @@ const fogLive = (() => {
         coords=next; stamp=data.updated_at; rasterMap=null; rebuild(); render(); return;
       } catch (_) { /* Try the other endpoint; keep the last good snapshot. */ }
     }
-    if(controls && !coords) {controls.summary.textContent=tr('Новые клетки: нет данных','New cells: unavailable'); controls.time.textContent=tr('Не удалось получить слой.','Could not load the overlay.');}
+    if(controls && !coords) {if(!hasData) controls.summary.textContent=tr('Новые клетки: нет данных','New cells: unavailable'); controls.time.textContent=tr('Живые данные временно недоступны.','Live scan data is temporarily unavailable.');}
   }
   function start() {
     const card=document.getElementById('layersCard'); if(!card) return;
@@ -2249,7 +2260,8 @@ const fogLive = (() => {
     root.querySelector('input').addEventListener('change',e=>{enabled=e.target.checked;render();});
     document.getElementById('langSwitch')?.addEventListener('click',()=>setTimeout(updateLabel,0));
     document.getElementById('continentSwitch')?.addEventListener('change',()=>setTimeout(()=>{rasterMap=null;updateLabel();render();},0));
-    updateLabel();load();setInterval(load,5*60*1000);
+    window.refreshFogLive=()=>{rasterMap=null;rebuild();render();};
+    rebuild();updateLabel();load();setInterval(load,5*60*1000);
   }
   return {start,draw};
 })();
