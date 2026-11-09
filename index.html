@@ -2755,7 +2755,7 @@ const mapTools = (() => {
   const tr = (ru,en) => currentLang === 'ru' ? ru : en;
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const words = {
-    terrainFeature:['Условия местности','Terrain characteristics'], terrainFeatureAll:['Все условия','All characteristics'], terrainFeatureMissing:['Нет данных для этого континента','No data for this continent'], terrainFeatureLoading:['Загрузка…','Loading…'],
+    terrainFeature:['Условие местности','Terrain characteristic'], terrainFeatureSecond:['Второе условие','Second characteristic'], terrainFeatureSecondAll:['Любое второе условие','Any second characteristic'], terrainFeatureAll:['Все условия','All characteristics'], terrainFeatureMissing:['Нет данных для этого континента','No data for this continent'], terrainFeatureLoading:['Загрузка…','Loading…'],
     freshOnly:['Только новые находки перескана','Only new finds of the rescan'], copyGame:['Ссылка на игру','Game link'],
     close:['Закрыть','Close'], category:['Категория','Category'], resources:['Ресурсы','Resources'], nature:['Растения','Plants'], natureIntro:['Деревья и растения: качество, свободные клетки и лучшие находки.','Trees and plants: quality, free cells, and best finds.'], findPlant:['Найти растение','Find a plant'], plantPlaceholder:['Дуб…','Oak…'], byCount:['По количеству','By count'], owners:['Владения','Domains'], plan:['План','Plan'], list:['Список','List'],
     terrain:['Местность','Terrain'], surfaceTypes:['Типы поверхности','Surface types'], mode_terrain:['Местность','Terrain'], mode_owners:['По владельцам','By owner'], mode_resources:['Минералы','Minerals'], findOwner:['Поселение или лорд','Settlement or lord'], visibleOnly:['В видимой области','In visible area'], favoritesOnly:['Только избранное','Favorites only'],
@@ -2934,8 +2934,16 @@ const mapTools = (() => {
       const el=$(kind+'TerrainFeature'), old=el.value;
       el.innerHTML='<option value="">'+esc(label(status||'terrainFeatureAll'))+'</option>'+(terrainFeatures?terrainFeatures.variants.map(v=>`<option value="${esc(v)}">${esc(featureText(v))}</option>`).join(''):'');
       el.disabled=!terrainFeatures; if(old)el.value=old;
+      updateSecondTerrainControl(kind);
       $(kind+'TerrainCoverage').textContent=terrainFeatures?tr(`Данные есть для ${fmtNum(terrainFeatures.covered)} из ${fmtNum(terrainFeatures.total)} клеток. Клетки без данных исключаются при выборе условия.`,`Data available for ${fmtNum(terrainFeatures.covered)} of ${fmtNum(terrainFeatures.total)} cells. Cells without data are excluded when filtering.`):'';
     }
+  }
+  function updateSecondTerrainControl(kind) {
+    const first=$(kind+'TerrainFeature').value, second=$(kind+'TerrainFeature2'), old=second.value;
+    const available=terrainFeatures&&first?terrainFeatures.variants.filter(v=>v!==first&&terrainFeatures.combinations.some(c=>c.includes(first)&&c.includes(v))):[];
+    second.innerHTML='<option value="">'+esc(label('terrainFeatureSecondAll'))+'</option>'+available.map(v=>`<option value="${esc(v)}">${esc(featureText(v))}</option>`).join('');
+    second.disabled=!terrainFeatures||!first||!available.length;
+    if(available.includes(old))second.value=old;
   }
   async function loadTerrainFeatures() {
     const request=++terrainRequest; terrainFeatures=null;
@@ -2965,10 +2973,10 @@ const mapTools = (() => {
     const originText=$(prefix+'Origin').value.trim(), origin=originText?parseCoords(originText):(reference||MAP_DATA.domain);
     const radiusText=$(prefix+'Radius').value.trim(), radius=radiusText===''?null:Number(radiusText);
     if(!origin||!Number.isFinite(low)||!Number.isFinite(max)||low<0||max>100||low>max||(radius!==null&&(!Number.isFinite(radius)||radius<0))){notice(tr('Проверьте качество, координаты и радиус','Check quality, coordinates and radius'));return null;}
-    return {terrainFeature:$(prefix+'TerrainFeature').value,quality:low,maxQuality:max,origin,radius,visible:$(prefix+'Visible').checked,fresh:$(prefix+'Fresh').checked,sort:$(prefix+'Sort').value};
+    return {terrainFeature:$(prefix+'TerrainFeature').value,terrainFeature2:$(prefix+'TerrainFeature2').value,quality:low,maxQuality:max,origin,radius,visible:$(prefix+'Visible').checked,fresh:$(prefix+'Fresh').checked,sort:$(prefix+'Sort').value};
   }
   function matchesSearch(p, options, bounds, fresh) {
-    return (!options.terrainFeature||hasTerrainFeature(p,options.terrainFeature))&&p[3]>=options.quality&&p[3]<=options.maxQuality&&(!options.free||p[4]===0)&&(!options.visible||(p[0]>=bounds[0]&&p[0]<=bounds[2]&&p[1]>=bounds[1]&&p[1]<=bounds[3]))&&(!fresh||fresh.has(pointKey(p)));
+    return (!options.terrainFeature||hasTerrainFeature(p,options.terrainFeature))&&(!options.terrainFeature2||hasTerrainFeature(p,options.terrainFeature2))&&p[3]>=options.quality&&p[3]<=options.maxQuality&&(!options.free||p[4]===0)&&(!options.visible||(p[0]>=bounds[0]&&p[0]<=bounds[2]&&p[1]>=bounds[1]&&p[1]<=bounds[3]))&&(!fresh||fresh.has(pointKey(p)));
   }
   function filterResources(kind='resource') {
     const options=searchOptions(kind);if(!options)return;
@@ -3268,7 +3276,7 @@ const mapTools = (() => {
         const prefix=f.kind==='land'?'land':f.kind==='plant'?'plant':'resource';
         $(prefix+'Origin').value=formatCoords(...f.origin);$(prefix+'Radius').value=f.radius??'';$(prefix+'MaxQuality').value=f.maxQuality??'';$(prefix+'Visible').checked=!!f.visible;$(prefix+'Fresh').checked=!!f.fresh;$(prefix+'Sort').value=f.sort==='quality'?'quality':'distance';
         if(f.terrainFeature&&!terrainFeatures){pendingTerrainLink=true;return;}
-        if(f.terrainFeature)$(prefix+'TerrainFeature').value=f.terrainFeature;
+        if(f.terrainFeature){$(prefix+'TerrainFeature').value=f.terrainFeature;updateSecondTerrainControl(prefix);if(f.terrainFeature2)$(prefix+'TerrainFeature2').value=f.terrainFeature2;}
         if(f.kind==='land'){$('landType').value=f.code;$('landQuality').value=f.quality;$('landFree').checked=!!f.free;setPanel('land',true);filterResources('land');}
         else if(f.kind==='plant'){setPanel('nature',true);$('plantType').value=f.code;$('plantQuality').value=f.quality;$('plantFree').checked=!!f.free;filterPlants();}
         else {$('resourceType').value=f.code||'';$('resourceQuality').value=f.quality;$('resourceFree').checked=!!f.free;$('resourceRadius').value=f.radius??'';$('resourceSort').value=f.sort==='quality'?'quality':'distance';setPanel('resource',true);filterResources();}
@@ -3445,9 +3453,10 @@ const mapTools = (() => {
   $('resourcePanel').insertAdjacentHTML('afterbegin',`<details class="resource-filters" id="resourceFilterDetails" open><summary>${span('filters')}</summary><label>${span('resource')}<select id="resourceType"></select></label><div class="filter-pair"><label>${span('quality')}<input id="resourceQuality" type="number" min="0" max="100" value="0"></label><label>${span('sort')}<select id="resourceSort"><option value="distance" data-mt="byDistance">По расстоянию</option><option value="quality" data-mt="byQuality">По качеству</option></select></label></div><label class="check"><input id="resourceFree" type="checkbox" checked>${span('freeOnly')}</label><label>${span('origin')}<input id="resourceOrigin"></label><button id="useMapCenter">${span('useCenter')}</button><label>${span('radius')}<input id="resourceRadius" type="number" min="0" step="1"></label><div class="button-row"><button id="applyResourceFilter">${span('apply')}</button><button id="resetResourceFilter">${span('reset')}</button></div></details><div id="resourceResults" hidden></div>`);
   for(const [kind,button] of [['resource','applyResourceFilter'],['land','applyLandFilter'],['plant','applyPlantFilter']]) {
     const container=$(button).parentElement;
-    const common=`<label>${span('terrainFeature')}<select id="${kind}TerrainFeature" disabled><option>${label('terrainFeatureLoading')}</option></select></label><small class="muted" id="${kind}TerrainCoverage"></small><label>${span('maxQuality')}<input id="${kind}MaxQuality" type="number" min="0" max="100" placeholder="100"></label><label class="check"><input id="${kind}Visible" type="checkbox">${span('withinView')}</label><label class="check"><input id="${kind}Fresh" type="checkbox">${span('freshOnly')}</label>`;
+    const common=`<label>${span('terrainFeature')}<select id="${kind}TerrainFeature" disabled><option>${label('terrainFeatureLoading')}</option></select></label><label>${span('terrainFeatureSecond')}<select id="${kind}TerrainFeature2" disabled><option>${label('terrainFeatureSecondAll')}</option></select></label><small class="muted" id="${kind}TerrainCoverage"></small><label>${span('maxQuality')}<input id="${kind}MaxQuality" type="number" min="0" max="100" placeholder="100"></label><label class="check"><input id="${kind}Visible" type="checkbox">${span('withinView')}</label><label class="check"><input id="${kind}Fresh" type="checkbox">${span('freshOnly')}</label>`;
     const extra=kind==='resource'?'':`<label>${span('sort')}<select id="${kind}Sort"><option value="distance" data-mt="byDistance">${label('byDistance')}</option><option value="quality" data-mt="byQuality">${label('byQuality')}</option></select></label><label>${span('origin')}<input id="${kind}Origin" placeholder="${tr('Центр карты','Map center')}"></label><button type="button" id="${kind}UseCenter">${span('useCenter')}</button><label>${span('radius')}<input id="${kind}Radius" type="number" min="0" step="1"></label>`;
     container.insertAdjacentHTML('beforebegin',common+extra);
+    $(kind+'TerrainFeature').addEventListener('change',()=>updateSecondTerrainControl(kind));
     if(kind!=='resource')$(kind+'UseCenter').onclick=()=>{$(kind+'Origin').value=formatCoords(...snap(center()));};
   }
   document.querySelectorAll('[data-panel]').forEach(b=>b.onclick=()=>setPanel(b.dataset.panel));
