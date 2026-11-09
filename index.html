@@ -384,7 +384,7 @@
 #mapView #quickMeasure svg { display:block; }
 #mapView #drawingMeasurement { max-width: min(55vw, 480px); max-height: 5em; overflow: auto; color:#efd294; line-height:1.4; }
 .mobile-only { display:none; }
-@media(max-width:760px) {
+@media(max-width:900px) {
   #mapView .sidebar { position:absolute; bottom:0; left:0; right:0; width:100%; height:66%; z-index:10; border-top:1px solid var(--accent); border-radius:14px 14px 0 0; transform:translateY(105%); transition:transform .18s; box-shadow:0 -10px 40px #0007; }
   #mapView .sidebar.open { transform:translateY(0); }
   #mapView .sidebar-head, #mapView .stats, #mapView .sidebar-foot { display:none; }
@@ -407,6 +407,127 @@
   #mapView button, #mapView .check { min-height:36px; }
   .topbar-brand { display:none; }
   #mapView .map-status { display:none; }
+}
+
+/* --- Mobile/tablet refinement: safe layout, touch targets, legend and
+       orientation-aware sheet. Kept after the original rules so desktop
+       behavior above 950px is unchanged. --- */
+#mapView .sheet-scrim {
+  display:none;
+  position:absolute;
+  inset:0;
+  z-index:9;
+  background:rgba(3,7,11,.52);
+  opacity:0;
+  transition:opacity .18s ease;
+}
+#mapView .sheet-scrim.open { opacity:1; pointer-events:auto; }
+
+@media (max-width:900px), (orientation:landscape) and (max-height:520px) and (max-width:950px) {
+  #mapView { position:relative; }
+  #mapView .sidebar {
+    visibility:hidden;
+    pointer-events:none;
+    overscroll-behavior:contain;
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  #mapView .sidebar.open { visibility:visible; pointer-events:auto; }
+  #mapView .sheet-scrim { display:block; pointer-events:none; }
+  #mapView .sheet-scrim.open { pointer-events:auto; }
+  #mapView .toolbar {
+    top:var(--map-top-ui, 102px);
+    left:max(8px, env(safe-area-inset-left));
+    right:max(8px, env(safe-area-inset-right));
+    max-width:none;
+  }
+  #mapView .icon-legend {
+    top:var(--map-legend-top, 160px);
+    right:max(8px, env(safe-area-inset-right));
+    width:min(218px, calc(100vw - 16px));
+    max-height:calc(100% - var(--map-legend-top, 160px) - 12px);
+    overflow:auto;
+    overscroll-behavior:contain;
+  }
+  #mapView .map-controls {
+    top:8px;
+    left:max(8px, env(safe-area-inset-left));
+    right:max(8px, env(safe-area-inset-right));
+  }
+  #mapView .sidebar .side-tabs button,
+  #mapView .side-panel button,
+  #mapView .side-panel input:not([type=checkbox]),
+  #mapView .side-panel select,
+  #mapView .side-panel .check,
+  #mapView .search-category button,
+  #mapView .search-category select,
+  #mapView .map-controls button,
+  #mapView .toolbar button,
+  #mapView .legend-head,
+  #mapView #closeSidebar,
+  #mapView .close-card { min-height:44px; }
+  #mapView .legend-head { font-size:.8rem; }
+  #mapView .layers-toggle { width:44px; height:44px; }
+  #mapView .resource-filters summary,
+  #mapView .side-panel > details > summary { min-height:44px; padding-top:11px; padding-bottom:11px; }
+  #mapView .side-panel input[type=checkbox] { width:20px; height:20px; flex:none; }
+  #mapView .object-card .button-row a,
+  #mapView .object-card .button-row button { min-height:44px; display:inline-flex; align-items:center; }
+  #mapView .switch-btn { min-height:30px; }
+  #mapView #miniMap { bottom:max(15px, env(safe-area-inset-bottom)); }
+  #mapView #mapScale { bottom:max(18px, calc(env(safe-area-inset-bottom) + 3px)); }
+  #mapView #unknownKey { bottom:max(98px, calc(env(safe-area-inset-bottom) + 83px)); }
+  #mapView .object-card {
+    bottom:max(10px, env(safe-area-inset-bottom));
+    max-height:min(52%, 460px);
+  }
+  #mapView .side-panel { overscroll-behavior:contain; }
+  #mapView .mapwrap { overscroll-behavior:none; }
+  html, body { overscroll-behavior:none; }
+}
+
+/* Phones in landscape: the 66%-high bottom sheet would leave almost no map,
+   so use a left drawer over a full-width map instead. */
+@media (orientation:landscape) and (max-height:520px) and (max-width:950px) {
+  #mapView .sidebar {
+    position:absolute;
+    z-index:10;
+    top:0;
+    bottom:0;
+    left:0;
+    right:auto;
+    width:min(360px, 58vw);
+    height:auto;
+    border-top:0;
+    border-right:1px solid var(--accent);
+    border-radius:0 12px 12px 0;
+    transform:translateX(-105%);
+    box-shadow:12px 0 40px #0008;
+  }
+  #mapView .sidebar.open { transform:translateX(0); }
+  #mapView .sidebar-head,
+  #mapView .stats,
+  #mapView .sidebar-foot { display:none; }
+  #mapView .mobile-only { display:block; }
+  #mapView #closeSidebar {
+    display:block;
+    align-self:flex-end;
+    margin:8px 12px 0;
+  }
+  #mapView .side-tabs { flex-wrap:wrap; }
+  #mapView .side-tabs button { flex:1 1 calc(50% - 4px); }
+  #mapView .object-card {
+    top:auto;
+    left:8px;
+    right:8px;
+    width:auto;
+    max-height:55%;
+  }
+}
+
+@media (max-width:340px) {
+  .scan-live { display:none !important; }
+  .topbar { padding-left:8px; padding-right:8px; gap:6px; }
+  #continentSwitch { max-width:105px; }
 }
 
 </style>
@@ -2826,7 +2947,100 @@ const mapTools = (() => {
     scale=Math.max(.005,Math.min(24,scale*factor));
     offX=sx-(x-minX)*PT*scale; offY=sy-(y-minY)*PT*scale; render();
   }
-  function closeSidebar() { document.querySelector('#mapView .sidebar').classList.remove('open'); $('openSidebar').setAttribute('aria-expanded','false'); }
+  let lastSidebarFocus=null;
+  let mobileLegendInitialized=false;
+  let mobileChromeFrame=0;
+  let cardFocusKey=null;
+  let userInteracted=false;
+  function isMobileLayout() {
+    return window.matchMedia('(max-width: 900px), (orientation: landscape) and (max-height: 520px) and (max-width: 950px)').matches;
+  }
+  function sheetScrim(){ return $('sheetScrim'); }
+  function setSheetBackgroundInert(on) {
+    const wrap=document.querySelector('#mapView .mapwrap');
+    const top=document.querySelector('.topbar');
+    if(wrap) wrap.inert=on;
+    if(top) top.inert=on;
+  }
+  function openSidebar() {
+    const sidebar=document.querySelector('#mapView .sidebar');
+    const open=$('openSidebar');
+    if(!sidebar || sidebar.classList.contains('open')) return;
+    lastSidebarFocus=document.activeElement;
+    sidebar.classList.add('open');
+    if(open){
+      open.setAttribute('aria-expanded','true');
+      open.setAttribute('aria-controls','mapSidebar');
+      open.setAttribute('aria-haspopup','dialog');
+    }
+    if(isMobileLayout()){
+      sidebar.setAttribute('role','dialog');
+      sidebar.setAttribute('aria-modal','true');
+      sidebar.setAttribute('aria-label',tr('Поиск и фильтры','Search and filters'));
+      const scrim=sheetScrim(); if(scrim) scrim.classList.add('open');
+      setSheetBackgroundInert(true);
+      syncMobileChrome();
+      const target=$('closeSidebar') || sidebar.querySelector('.side-tabs button') || sidebar;
+      requestAnimationFrame(()=>{try{target.focus({preventScroll:true});}catch(e){target.focus();}});
+    }
+  }
+  function closeSidebar() {
+    const sidebar=document.querySelector('#mapView .sidebar');
+    const open=$('openSidebar');
+    const wasOpen=Boolean(sidebar && sidebar.classList.contains('open'));
+    if(sidebar) sidebar.classList.remove('open');
+    if(open) open.setAttribute('aria-expanded','false');
+    const scrim=sheetScrim(); if(scrim) scrim.classList.remove('open');
+    if(wasOpen){
+      setSheetBackgroundInert(false);
+      if(lastSidebarFocus && document.contains(lastSidebarFocus) && typeof lastSidebarFocus.focus==='function'){
+        try{lastSidebarFocus.focus({preventScroll:true});}catch(e){}
+      }
+    }
+    if(sidebar){
+      sidebar.removeAttribute('role');
+      sidebar.removeAttribute('aria-modal');
+      sidebar.removeAttribute('aria-label');
+    }
+    lastSidebarFocus=null;
+  }
+  function syncMobileChrome() {
+    const root=$('mapView');
+    const controls=document.querySelector('#mapView .map-controls');
+    const toolbar=document.querySelector('#mapView .toolbar');
+    if(!root) return;
+    if(!isMobileLayout() || !controls || !toolbar){
+      root.style.removeProperty('--map-top-ui');
+      root.style.removeProperty('--map-legend-top');
+      return;
+    }
+    const top=controls.offsetTop+controls.offsetHeight+8;
+    root.style.setProperty('--map-top-ui', top+'px');
+    root.style.setProperty('--map-legend-top', (top+toolbar.offsetHeight+8)+'px');
+  }
+  function scheduleMobileChrome() {
+    if(mobileChromeFrame) return;
+    mobileChromeFrame=requestAnimationFrame(()=>{
+      mobileChromeFrame=0;
+      const sidebar=document.querySelector('#mapView .sidebar');
+      if(sidebar && sidebar.classList.contains('open') && !isMobileLayout()) closeSidebar();
+      syncMobileChrome();syncMobileLegend();
+    });
+  }
+  function syncMobileLegend() {
+    const box=$('iconLegend'), head=$('legendHead');
+    if(!box || !head) return;
+    head.setAttribute('aria-controls','legendGrid');
+    if(!isMobileLayout() || mobileLegendInitialized) return;
+    mobileLegendInitialized=true;
+    let stored=null;
+    try{stored=localStorage.getItem('lolsite.legend');}catch(e){}
+    if(stored===null){
+      box.classList.add('collapsed');
+      head.setAttribute('aria-expanded','false');
+    }
+  }
+
   let searchActive=false;
   function setPanel(panel, fromSearch=false) {
     if(panel==='search'){searchActive=true;panel=$('searchCategory').value;}
@@ -2902,14 +3116,28 @@ const mapTools = (() => {
     fields.push([tr('Снимок','Snapshot'),MAP_DATA.generatedAt]);
     if(date) fields.push([tr('Проверка клетки','Cell checked'),String(date)]);
     $('objectCard').innerHTML=`<button class="close-card" id="closeCard" aria-label="${label('close')}">×</button><h3>${esc(r?.name || (mt?typeFullName(mt):label('noData')))}</h3><dl>${fields.map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>${!date?`<p class="muted">${tr('Дата проверки отдельной клетки в снимке не указана.','This snapshot has no individual cell check time.')}</p>`:''}<div class="button-row"><a target="_blank" rel="noopener" href="https://www.landsoflords.com/map/${formatCoords(picked.x,picked.y)}">${label('openGame')}</a><button id="copyCoords">${label('copyCoords')}</button><button id="copyGameLink">${label('copyGame')}</button><button id="shareObject">${label('share')}</button><button id="savePlace">${label('savePlace')}</button><button id="useReference">${label('reference')}</button></div>`;
+    const wasHidden=$('objectCard').hidden;
     $('objectCard').hidden=false;
+    const cardKey=picked.x+','+picked.y;
+    if(isMobileLayout() && userInteracted && (wasHidden || cardFocusKey!==cardKey)){
+      cardFocusKey=cardKey;
+      requestAnimationFrame(()=>{
+        const card=$('objectCard');
+        if(card && !card.hidden && document.activeElement!==card){
+          try{card.focus({preventScroll:true});}catch(e){card.focus();}
+        }
+      });
+    }
     const herald=owner&&MAP_DATA.ownerHeralds?.[owner];
     if(herald&&/^https:\/\//.test(herald)){
       const wrap=heraldShield(herald,owner,'card-herald');wrap.art.onerror=()=>wrap.remove();$('objectCard').prepend(wrap);
     }
     const landmark=LANDMARKS.find(l=>l.x===picked.x&&l.y===picked.y);
     if(landmark) $('objectCard').querySelector('h3').textContent=tr(landmark.nameRu,landmark.nameEn);
-    $('closeCard').onclick=()=>{picked=null;selectedOwnerKey=null;$('objectCard').hidden=true;render();};
+    $('closeCard').onclick=()=>{
+      picked=null;selectedOwnerKey=null;cardFocusKey=null;$('objectCard').hidden=true;render();
+      if(isMobileLayout()) requestAnimationFrame(()=>{try{canvas.focus({preventScroll:true});}catch(e){canvas.focus();}});
+    };
     $('copyCoords').onclick=()=>copyText(formatCoords(picked.x,picked.y));
     $('copyGameLink').onclick=()=>{copyText(gameUrl(picked.x,picked.y));notice(tr('Ссылка на игру скопирована','Game link copied'));};
     $('shareObject').onclick=()=>share();
@@ -3422,6 +3650,7 @@ const mapTools = (() => {
     if(state.panel==='list') renderList();
     if(state.panel==='nature') renderNature();
     renderOwners();renderResourceResults();showCard();const pending=draft;setTool(state.tool);draft=pending;render();
+    scheduleMobileChrome();
   }
   function onData() {
     loadTerrainFeatures();
@@ -3445,6 +3674,7 @@ const mapTools = (() => {
     $('ownerSearch').value='';ownerLimit=80;$('resourceQuality').value='0';$('resourceRadius').value='';$('resourceFree').checked=true;$('resourceSort').value='distance';
     state.ready=true;window.refreshListOptions();if(!plans.length)newPlan();else{loadOverlay();updatePlanUI();}
     setTool('pan');syncLayers();renderOwners();
+    scheduleMobileChrome();
   }
   // Static controls are inserted once so language changes preserve form values and focus.
   canvas.parentElement.insertAdjacentHTML('beforeend','<div id="heraldLayer" aria-hidden="true"></div>');
@@ -3464,7 +3694,7 @@ const mapTools = (() => {
   $('openSearchList').onclick=()=>setPanel('list',true);
   document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
   document.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>{setTool(b.dataset.tool);if(b.dataset.tool!=='pan')closeSidebar();});
-  $('openSidebar').onclick=()=>{document.querySelector('#mapView .sidebar').classList.add('open');$('openSidebar').setAttribute('aria-expanded','true');};$('closeSidebar').onclick=closeSidebar;
+  $('openSidebar').onclick=openSidebar;$('closeSidebar').onclick=closeSidebar;
   $('quickMeasure').onclick=()=>{if(state.tool==='measure'){setTool('pan');return;}planVisible=true;$('planVisible').checked=true;closeSidebar();$('objectCard').hidden=true;setTool('measure');};
   $('measureMode').onchange=()=>{updateMeasurement(draft);render();};
   $('shareMap').onclick=share;
@@ -3524,9 +3754,72 @@ const mapTools = (() => {
   $('importPlan').onchange=e=>{importPlan(e.target.files[0]);e.target.value='';};
   $('planObjects').onclick=e=>{const b=e.target.closest('[data-delete-shape]');if(b){checkpoint();currentPlan().shapes.splice(Number(b.dataset.deleteShape),1);updatePlanUI();}};
   window.addEventListener('hashchange',restoreLink);
+  // Mobile sheet: backdrop + focus isolation. Desktop keeps the docked sidebar.
+  const sidebarEl=document.querySelector('#mapView .sidebar');
+  if(sidebarEl){
+    sidebarEl.id='mapSidebar';
+    sidebarEl.setAttribute('aria-label',tr('Поиск и фильтры','Search and filters'));
+    const scrim=document.createElement('div');
+    scrim.id='sheetScrim';
+    scrim.className='sheet-scrim';
+    scrim.setAttribute('aria-hidden','true');
+    sidebarEl.before(scrim);
+    scrim.addEventListener('click',closeSidebar);
+    sidebarEl.addEventListener('keydown',e=>{
+      if(e.key!=='Tab' || !sidebarEl.classList.contains('open') || !isMobileLayout()) return;
+      const focusable=[...sidebarEl.querySelectorAll('button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])')].filter(el=>el.offsetParent!==null);
+      if(!focusable.length) return;
+      const first=focusable[0], last=focusable[focusable.length-1];
+      if(e.shiftKey && (document.activeElement===first || document.activeElement===sidebarEl)){e.preventDefault();last.focus();}
+      else if(!e.shiftKey && document.activeElement===last){e.preventDefault();first.focus();}
+    });
+  }
+  const openSidebarBtn=$('openSidebar');
+  if(openSidebarBtn){
+    openSidebarBtn.setAttribute('aria-controls','mapSidebar');
+    openSidebarBtn.setAttribute('aria-haspopup','dialog');
+  }
+  const objectCardEl=$('objectCard');
+  if(objectCardEl){
+    objectCardEl.setAttribute('role','region');
+    objectCardEl.setAttribute('aria-label',tr('Информация о клетке','Cell details'));
+  }
+  canvas.tabIndex=0;
+  canvas.setAttribute('role','region');
+  canvas.setAttribute('aria-label',tr('Интерактивная карта: стрелки — сдвиг, + и − — масштаб','Interactive map: arrow keys pan, plus and minus zoom'));
+  canvas.addEventListener('keydown',e=>{
+    if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)) return;
+    e.preventDefault();
+    const step=e.shiftKey?240:60;
+    if(e.key==='ArrowLeft')offX-=step;if(e.key==='ArrowRight')offX+=step;
+    if(e.key==='ArrowUp')offY-=step;if(e.key==='ArrowDown')offY+=step;
+    render();
+  });
+  $('miniMap').addEventListener('keydown',e=>{
+    if(e.key!=='Enter' && e.key!==' ') return;
+    e.preventDefault();
+    jumpCenter((minX+maxX)/2,(minY+maxY)/2);
+  });
+  syncMobileLegend();
+  scheduleMobileChrome();
+  window.addEventListener('resize',scheduleMobileChrome);
+  window.addEventListener('orientationchange',scheduleMobileChrome);
+  if(window.ResizeObserver){
+    const chromeObserver=new ResizeObserver(scheduleMobileChrome);
+    const controls=document.querySelector('#mapView .map-controls');
+    const toolbar=document.querySelector('#mapView .toolbar');
+    if(controls)chromeObserver.observe(controls);
+    if(toolbar)chromeObserver.observe(toolbar);
+  }
+  document.querySelectorAll('[data-panel]').forEach(b=>b.setAttribute('aria-pressed',String(b.classList.contains('active'))));
+  if(objectCardEl) objectCardEl.tabIndex=-1;
   window.addEventListener('keydown',e=>{
     if(e.target.closest('input,select,textarea'))return;
-    if(e.key==='Escape'){draft=[];setTool('pan');closeSidebar();$('objectCard').hidden=true;picked=null;selectedOwnerKey=null;render();}
+    if(e.key==='Escape'){
+      const card=$('objectCard'), hadCardFocus=Boolean(card && card.contains(document.activeElement));
+      draft=[];setTool('pan');closeSidebar();card.hidden=true;picked=null;selectedOwnerKey=null;cardFocusKey=null;render();
+      if(hadCardFocus && isMobileLayout()){try{canvas.focus({preventScroll:true});}catch(err){canvas.focus();}}
+    }
     if(e.key==='Enter'&&(state.panel==='plan'||state.tool==='measure')){e.preventDefault();finishShape();}
     if(e.key==='+'||e.key==='=')zoomAt(1.3);if(e.key==='-')zoomAt(1/1.3);
     if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&state.panel==='plan'){e.preventDefault();undo(e.shiftKey);}
@@ -3545,6 +3838,9 @@ const mapTools = (() => {
   });
   function endTouch(e){if(!touches.has(e.pointerId))return;e.preventDefault();const click=touches.size===1&&!pointerStart.moved&&e.type!=='pointercancel';touches.delete(e.pointerId);previousTouch=null;if(click)clickAt(e.clientX,e.clientY);}
   canvas.addEventListener('pointerup',endTouch);canvas.addEventListener('pointercancel',endTouch);
+  const markInteracted=()=>{userInteracted=true;};
+  document.addEventListener('pointerdown',markInteracted,{capture:true,passive:true,once:true});
+  document.addEventListener('keydown',markInteracted,{capture:true,once:true});
   function jumpTo(x,y) { scale=Math.max(scale,6/PT); jumpCenter(x,y); syncLink(); closeSidebar(); }
   return Object.assign(state,{onData,localize,renderOwners,drawUnknown,drawSettlements,drawResourceResults,drawExtras,zoomAt,clickAt,restoreLink,terrainColor,jumpTo});
 })();
