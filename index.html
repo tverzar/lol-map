@@ -530,6 +530,15 @@
   #continentSwitch { max-width:105px; }
 }
 
+/* A single control remains available to restore the interface. */
+body.map-ui-hidden > .topbar,
+body.map-ui-hidden #mapView > .sidebar,
+body.map-ui-hidden #mapView .mapwrap > :not(#map):not(.map-controls):not(#heraldLayer) { display:none !important; }
+body.map-ui-hidden #mapView .map-controls > :not(#toggleMapInterface) { display:none !important; }
+body.map-ui-hidden #mapView .map-controls { left:auto; right:max(8px, env(safe-area-inset-right)); top:max(8px, env(safe-area-inset-top)); width:auto; }
+#mapView #toggleMapInterface { display:inline-flex; align-items:center; justify-content:center; }
+#mapView #toggleMapInterface svg { display:block; }
+
 </style>
 
 <div class="topbar">
@@ -3195,6 +3204,17 @@ const mapTools = (() => {
     if(x<0||y<0||x>=terrainFeatures.width||y>=terrainFeatures.height)return false;
     return (terrainFeatures.combinations[terrainFeatures.grid[y*terrainFeatures.width+x]]||[]).includes(feature);
   }
+  function syncMapInterfaceButton() {
+    const hidden=document.body.classList.contains('map-ui-hidden');
+    const button=$('toggleMapInterface');if(!button)return;
+    const text=hidden?tr('Показать интерфейс','Show interface'):tr('Скрыть интерфейс','Hide interface');
+    button.title=text;button.setAttribute('aria-label',text);button.setAttribute('aria-pressed',String(hidden));
+  }
+  function toggleMapInterface() {
+    if(!document.body.classList.contains('map-ui-hidden'))closeSidebar();
+    document.body.classList.toggle('map-ui-hidden');syncMapInterfaceButton();
+    requestAnimationFrame(()=>{resizeCanvas();render();});
+  }
   function searchOptions(kind) {
     const prefix=kind==='plant'?'plant':kind==='land'?'land':'resource';
     const low=Number($(prefix+'Quality').value), maxText=$(prefix+'MaxQuality').value.trim(), max=maxText===''?100:Number(maxText);
@@ -3639,6 +3659,7 @@ const mapTools = (() => {
     }catch{notice(tr('Неверный план или другой континент. Нужен JSON, экспортированный этой картой.','Invalid plan or different continent. Use JSON exported by this map.'));}
   }
   function localize() {
+    syncMapInterfaceButton();
     document.querySelectorAll('[data-mt]').forEach(el=>el.textContent=label(el.dataset.mt));
     $('quickMeasure').setAttribute('aria-label',label('measure'));$('quickMeasure').title=label('measure');$('measureMode').setAttribute('aria-label',label('measureMode'));
     document.querySelectorAll('[data-mt-placeholder]').forEach(el=>el.placeholder=label(el.dataset.mtPlaceholder));
@@ -3678,7 +3699,7 @@ const mapTools = (() => {
   }
   // Static controls are inserted once so language changes preserve form values and focus.
   canvas.parentElement.insertAdjacentHTML('beforeend','<div id="heraldLayer" aria-hidden="true"></div>');
-  canvas.parentElement.insertAdjacentHTML('beforeend',`<div class="map-controls"><button id="openSidebar" class="mobile-only" aria-expanded="false">${span('search')}</button><div class="mode-group">${['terrain','owners','resources'].map(m=>`<button data-mode="${m}" class="${m==='terrain'?'active':''}">${span('mode_'+m)}</button>`).join('')}</div><button id="quickMeasure" aria-label="${label('measure')}" title="${label('measure')}" aria-pressed="false"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 16 16 3l5 5L8 21zM13 6l3 3M10 9l2 2M7 12l3 3M4 15l2 2"/></svg></button><span class="spacer"></span><button id="shareMap">${span('share')}</button></div><aside id="objectCard" class="object-card" hidden aria-live="polite"></aside><canvas id="miniMap" width="308" height="224" tabindex="0"></canvas><div id="mapScale"><span id="scaleText"></span><span id="scaleBar"></span></div><div id="unknownKey">${span('noData')}</div><div id="mapNotice" role="status" hidden></div>`);
+  canvas.parentElement.insertAdjacentHTML('beforeend',`<div class="map-controls"><button id="openSidebar" class="mobile-only" aria-expanded="false">${span('search')}</button><div class="mode-group">${['terrain','owners','resources'].map(m=>`<button data-mode="${m}" class="${m==='terrain'?'active':''}">${span('mode_'+m)}</button>`).join('')}</div><button id="quickMeasure" aria-label="${label('measure')}" title="${label('measure')}" aria-pressed="false"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 16 16 3l5 5L8 21zM13 6l3 3M10 9l2 2M7 12l3 3M4 15l2 2"/></svg></button><button type="button" id="toggleMapInterface" aria-pressed="false" title="${tr('Скрыть интерфейс','Hide interface')}" aria-label="${tr('Скрыть интерфейс','Hide interface')}"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/><path d="M9 9h6v6H9z"/></svg></button><span class="spacer"></span><button id="shareMap">${span('share')}</button></div><aside id="objectCard" class="object-card" hidden aria-live="polite"></aside><canvas id="miniMap" width="308" height="224" tabindex="0"></canvas><div id="mapScale"><span id="scaleText"></span><span id="scaleBar"></span></div><div id="unknownKey">${span('noData')}</div><div id="mapNotice" role="status" hidden></div>`);
   canvas.parentElement.insertAdjacentHTML('beforeend',`<div id="drawingActions" hidden><strong id="drawingToolName"></strong><select id="measureMode" aria-label="${label('measureMode')}" hidden><option value="straight" data-mt="measureStraight">${label('measureStraight')}</option><option value="grid" data-mt="measureGrid">${label('measureGrid')}</option></select><button id="finishDrawing">${span('finish')}</button><button id="undoDrawing">${span('undo')}</button><button id="cancelDrawing">${span('pan')}</button><output id="drawingMeasurement" aria-live="polite"></output></div>`);
   $('resourcePanel').insertAdjacentHTML('afterbegin',`<details class="resource-filters" id="resourceFilterDetails" open><summary>${span('filters')}</summary><label>${span('resource')}<select id="resourceType"></select></label><div class="filter-pair"><label>${span('quality')}<input id="resourceQuality" type="number" min="0" max="100" value="0"></label><label>${span('sort')}<select id="resourceSort"><option value="distance" data-mt="byDistance">По расстоянию</option><option value="quality" data-mt="byQuality">По качеству</option></select></label></div><label class="check"><input id="resourceFree" type="checkbox" checked>${span('freeOnly')}</label><label>${span('origin')}<input id="resourceOrigin"></label><button id="useMapCenter">${span('useCenter')}</button><label>${span('radius')}<input id="resourceRadius" type="number" min="0" step="1"></label><div class="button-row"><button id="applyResourceFilter">${span('apply')}</button><button id="resetResourceFilter">${span('reset')}</button></div></details><div id="resourceResults" hidden></div>`);
   for(const [kind,button] of [['resource','applyResourceFilter'],['land','applyLandFilter'],['plant','applyPlantFilter']]) {
@@ -3697,6 +3718,7 @@ const mapTools = (() => {
   $('openSidebar').onclick=openSidebar;$('closeSidebar').onclick=closeSidebar;
   $('quickMeasure').onclick=()=>{if(state.tool==='measure'){setTool('pan');return;}planVisible=true;$('planVisible').checked=true;closeSidebar();$('objectCard').hidden=true;setTool('measure');};
   $('measureMode').onchange=()=>{updateMeasurement(draft);render();};
+  $('toggleMapInterface').onclick=toggleMapInterface;syncMapInterfaceButton();
   $('shareMap').onclick=share;
   for(const id of ['ownerSearch','ownersVisible','ownersFavorites','ownerSort'])$(id).addEventListener('input',()=>{ownerLimit=80;renderOwners();});
   $('moreOwners').onclick=()=>{ownerLimit+=80;renderOwners();};
