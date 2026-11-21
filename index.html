@@ -25,6 +25,8 @@
     text-align: center; font-size: 0.95rem;
   }
   #loadingMap[hidden] { display: none; }
+  #loadingMap .loading-date { color: var(--ink-dim); font-size: 0.85rem; }
+  #loadingMap .loading-date:empty { display: none; }
   #loadingMap .loading-track {
     width: min(320px, 72vw); height: 7px; overflow: hidden;
     border-radius: 8px; background: var(--panel-border);
@@ -571,7 +573,7 @@ body.map-ui-hidden #mapView .map-controls { left:auto; right:max(8px, env(safe-a
   </div>
 </div>
 
-<div id="loadingMap" role="progressbar" aria-label="Загрузка карты / Loading map" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="loading-scene" aria-hidden="true"><div class="loading-mason"></div></div><span class="loading-label">Загрузка карты / Downloading map data</span><div class="loading-track"><div class="loading-fill"></div></div></div><div class="app" id="mapView">
+<div id="loadingMap" role="progressbar" aria-label="Загрузка карты / Loading map" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="loading-scene" aria-hidden="true"><div class="loading-mason"></div></div><span class="loading-label">Загрузка карты / Downloading map data</span><div class="loading-track"><div class="loading-fill"></div></div><span class="loading-date"></span></div><div class="app" id="mapView">
   <aside class="sidebar">
     <div class="sidebar-head">
       <h1><span data-i18n="mapTitle">Разведка континента</span> <span id="continentNameLabel"></span></h1>
@@ -883,9 +885,20 @@ function setLoadingMessage(message) {
 const pendingContinents = new Map();
 // Снимок континента качается один раз за сессию: повторный выбор в
 // переключателе берёт уже распакованные данные из памяти.
+// Дата снимка под полоской загрузки: «Данные от 21.11.2026 / Data as of Nov 21, 2026».
+function setLoadingDate(entry) {
+  const el = document.querySelector("#loadingMap .loading-date");
+  const m = entry && /^(\d{4})-(\d{2})-(\d{2})/.exec(entry.generatedAt || "");
+  if (!el) return;
+  if (!m) { el.textContent = ""; return; }
+  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+  const en = d.toLocaleDateString("en-US", {month: "short", day: "numeric", year: "numeric", timeZone: "UTC"});
+  el.textContent = `${entry.name ? entry.name + ": " : ""}данные от ${m[3]}.${m[2]}.${m[1]} / data as of ${en}`;
+}
 async function ensureContinentLoaded(idx) {
   const entry = ALL_DATA.continents[idx];
   if (!entry) throw new Error(`Unknown continent index: ${idx}`);
+  setLoadingDate(entry);
   if (entry.map) return entry;
   let pending = pendingContinents.get(entry.key);
   if (!pending) {
