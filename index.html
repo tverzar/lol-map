@@ -25,6 +25,11 @@
     text-align: center; font-size: 0.95rem;
   }
   #loadingMap[hidden] { display: none; }
+  .skill-legend { margin: 2px 0 6px; font-size: 0.78rem; color: var(--ink-dim); }
+  .skill-legend[hidden] { display: none; }
+  .skill-legend .skill-grad { height: 10px; border-radius: 5px; border: 1px solid var(--panel-border); }
+  .skill-legend .skill-scale { display: flex; justify-content: space-between; margin-top: 2px; }
+  .skill-legend .skill-note { margin-top: 3px; line-height: 1.3; }
   #loadingMap .loading-date { color: var(--ink-dim); font-size: 0.85rem; }
   #loadingMap .loading-date:empty { display: none; }
   #loadingMap .loading-track {
@@ -728,6 +733,7 @@ body.map-ui-hidden #mapView .map-controls { left:auto; right:max(8px, env(safe-a
       <div class="layer-extended" id="layerExtended" hidden>
         <label class="layer-line" id="layerSkillLine" hidden><span data-i18n="layerSkill">Бонус навыка</span>
           <select id="layerSkill" autocomplete="off"><option value="">—</option></select></label>
+        <div class="skill-legend" id="skillLegend" hidden></div>
         <label class="layer-line" id="layerOrgLine" hidden><span data-i18n="layerOrg">ID организации</span>
           <input id="layerOrgId" type="number" min="1" autocomplete="off" style="width:7em"></label>
       </div>
@@ -2432,20 +2438,51 @@ document.getElementById("legendHead").addEventListener("click", () => {
 // На старых данных этих ключей нет — элементы остаются скрытыми, а
 // drawSkillLayer ничего не рисует.
 let selectedSkill = "";
-const SKILL_NAMES = {harvest: "Сбор урожая", hunt: "Охота", dig: "Рытьё", salt: "Производство соли", ricegrow: "Рисоводство",
-  charcoal: "Сжигание древесины", trap: "Трапперство", survey: "Межевание", woodcut: "Вырубка", plough: "Вспашка",
-  sow: "Посев", bee: "Пчеловодство", fire: "Топка", mason: "Кладка", carry: "Перевозка", draw: "Вычерпывание воды",
-  destroy: "Разрушение", melee: "Ближний бой", polearm: "Древковое оружие"};
+// [рус, англ] — названия навыков игры; неизвестный код показывается как есть.
+const SKILL_NAMES = {
+  bee: ["Пчеловодство", "Beekeeping"], cattle: ["Скотоводство", "Cattle breeding"], ceremony: ["Церемонии", "Ceremony"],
+  dig: ["Копание", "Digging"], distil: ["Дистилляция", "Distilling"], draw: ["Набор воды", "Water drawing"],
+  find: ["Поиск", "Finding"], fire: ["Топка", "Firing"], fishing: ["Рыбалка", "Fishing"], garden: ["Садоводство", "Gardening"],
+  harvest: ["Сбор урожая", "Harvesting"], herd: ["Выпас", "Herding"], horse: ["Коневодство", "Horse breeding"],
+  hunt: ["Охота", "Hunting"], manage: ["Управление", "Management"], mason: ["Каменная кладка", "Masonry"],
+  mill: ["Помол", "Milling"], mine: ["Горное дело", "Mining"], paper: ["Бумажное дело", "Papermaking"],
+  pick: ["Собирательство", "Picking"], plant: ["Посадка", "Planting"], plough: ["Вспашка", "Ploughing"],
+  pray: ["Молитва", "Praying"], quarry: ["Добыча камня", "Quarrying"], refine: ["Очистка", "Refining"],
+  ricegrow: ["Рисоводство", "Rice growing"], sailing: ["Мореходство", "Sailing"], salt: ["Добыча соли", "Salt making"],
+  sow: ["Посев", "Sowing"], spin: ["Прядение", "Spinning"], tap: ["Подсочка", "Tapping"], trap: ["Ловля капканами", "Trapping"],
+  woodcut: ["Рубка леса", "Woodcutting"], charcoal: ["Углежжение", "Charcoal burning"], survey: ["Межевание", "Surveying"],
+  carry: ["Переноска", "Carrying"], destroy: ["Разрушение", "Demolition"], melee: ["Ближний бой", "Melee"], polearm: ["Древковое оружие", "Polearms"]};
+function skillName(k) { const n = SKILL_NAMES[k]; return n ? n[currentLang === "ru" ? 0 : 1] : k; }
+const SKILL_LEGEND_STEPS = [10, 20, 30, 40, 50];
 function setupExtendedLayers() {
   const skills = MAP_DATA.skillNames || Object.keys(MAP_DATA.skillCells || {}).sort();
   const orgIds = MAP_DATA.ownerOrgIds || {};
   const sel = document.getElementById("layerSkill");
-  sel.innerHTML = '<option value="">—</option>' + skills.map(k => `<option value="${k}">${SKILL_NAMES[k] || k}</option>`).join("");
+  const sorted = skills.slice().sort((a, b) => skillName(a).localeCompare(skillName(b), currentLang));
+  sel.innerHTML = '<option value="">—</option>' + sorted.map(k => `<option value="${k}">${skillName(k)}</option>`).join("");
   if (!skills.includes(selectedSkill)) selectedSkill = "";
   sel.value = selectedSkill;
   document.getElementById("layerSkillLine").hidden = !skills.length;
   document.getElementById("layerOrgLine").hidden = !Object.keys(orgIds).length;
   document.getElementById("layerExtended").hidden = !skills.length && !Object.keys(orgIds).length;
+  renderSkillLegend();
+}
+// Градация цвета слоя навыка: от +10 (бледно-зелёный) до +50 и выше (ярко-зелёный).
+function renderSkillLegend() {
+  const box = document.getElementById("skillLegend");
+  if (!box) return;
+  box.hidden = !selectedSkill;
+  if (!selectedSkill) return;
+  const stops = SKILL_LEGEND_STEPS.map(v => skillColor(v)).join(", ");
+  const flat = MAP_DATA.skillCells && MAP_DATA.skillCells[selectedSkill];
+  let info = "";
+  if (flat) {
+    let max = 0; for (let i = 2; i < flat.length; i += 3) if (flat[i] > max) max = flat[i];
+    info = currentLang === "ru" ? `${fmtNum(flat.length / 3)} клеток, максимум +${max}` : `${fmtNum(flat.length / 3)} cells, max +${max}`;
+  } else info = currentLang === "ru" ? "загрузка…" : "loading…";
+  box.innerHTML = `<div class="skill-grad" style="background:linear-gradient(90deg, ${stops})"></div>` +
+    `<div class="skill-scale">${SKILL_LEGEND_STEPS.map((v, i) => `<span>+${v}${i === SKILL_LEGEND_STEPS.length - 1 ? "+" : ""}</span>`).join("")}</div>` +
+    `<div class="skill-note">${currentLang === "ru" ? "Бонус навыка на клетке (земля + покров). Показаны клетки от +10." : "Skill bonus on the cell (ground + cover). Cells from +10 shown."} ${info}</div>`;
 }
 function ownerIdxByOrgId(orgId) {
   for (const [idx, id] of Object.entries(MAP_DATA.ownerOrgIds || {})) if (id === orgId) return Number(idx);
@@ -2462,7 +2499,7 @@ function drawSkillLayer(viewW, viewH, sz) {
     data.skillLoading = true;
     fetch("skills." + ALL_DATA.continents[currentContinentIdx].key + ".json")
       .then(r => r.ok ? r.json() : {}).catch(() => ({}))
-      .then(j => { data.skillCells = j; render(); });
+      .then(j => { data.skillCells = j; renderSkillLegend(); render(); });
   }
   const flat = selectedSkill && MAP_DATA.skillCells ? MAP_DATA.skillCells[selectedSkill] : null;
   if (!flat) return;
@@ -2474,7 +2511,7 @@ function drawSkillLayer(viewW, viewH, sz) {
     ctx.fillRect(sx - 0.5, sy - 0.5, s, s);
   }
 }
-document.getElementById("layerSkill").addEventListener("change", e => { selectedSkill = e.target.value; render(); });
+document.getElementById("layerSkill").addEventListener("change", e => { selectedSkill = e.target.value; renderSkillLegend(); render(); });
 document.getElementById("layerOrgId").addEventListener("change", e => {
   const idx = ownerIdxByOrgId(Number(e.target.value));
   selectedOwnerKey = idx;
@@ -2978,6 +3015,7 @@ function applyLang(lang) {
   renderScanDurationBadge();
   renderOwnerLegend();
   renderLegendList();
+  if (MAP_DATA) setupExtendedLayers();
   render();
 
   document.title = t("pageTitleMap");
