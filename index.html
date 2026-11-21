@@ -539,6 +539,25 @@ body.map-ui-hidden #mapView .map-controls { left:auto; right:max(8px, env(safe-a
 #mapView #toggleMapInterface { display:inline-flex; align-items:center; justify-content:center; }
 #mapView #toggleMapInterface svg { display:block; }
 
+/* --- Телефоны: цели касания не меньше 40px, читаемый текст. --- */
+@media (max-width:900px), (orientation:landscape) and (max-height:520px) and (max-width:950px) {
+  #mapView .toolbar button { width:40px; height:40px; }
+  #mapView .toolbar input { min-height:40px; font-size:16px; }
+  #mapView .layers-card .layer-line { min-height:40px; align-items:center; }
+  #mapView .layers-card select { min-height:40px; }
+  .switch-btn { min-width:40px; min-height:40px; }
+  #continentSwitch { min-height:40px; }
+  #quickMeasure, #toggleMapInterface { min-width:40px; }
+  #mapView .scan-details summary { min-height:40px; display:flex; align-items:center; }
+  .topbar { height:auto; min-height:50px; }
+  #langSwitch { padding:2px; }
+  .scan-live > summary { min-height:40px; display:flex; align-items:center; box-sizing:border-box; }
+  #mapView .layers-card, #mapView .object-card { font-size:max(12px, 1em); overscroll-behavior:contain; }
+}
+@media (orientation:landscape) and (max-height:520px) and (max-width:950px) {
+  #mapView .layers-card { max-height:calc(100% - 90px); }
+}
+
 </style>
 
 <div class="topbar">
@@ -600,6 +619,7 @@ body.map-ui-hidden #mapView .map-controls { left:auto; right:max(8px, env(safe-a
       <div class="filter-pair"><label><span data-mt="quality">Качество от, %</span><input id="listQuality" type="number" min="0" max="100" value="0"></label></div>
       <label class="check"><input id="listFree" type="checkbox" checked><span data-mt="freeOnly">Свободные по данным скана</span></label>
       <label class="check"><input id="listFresh" type="checkbox"><span data-mt="freshOnly">Только новые находки перескана</span></label>
+      <label class="check"><input id="listAbandoned" type="checkbox"><span data-mt="abandonedOnly">Только брошенные поселения</span></label>
       <p id="listCount" class="muted" aria-live="polite"></p>
       <div id="listResults"></div>
     </section>
@@ -656,6 +676,7 @@ body.map-ui-hidden #mapView .map-controls { left:auto; right:max(8px, env(safe-a
       <span class="hint" data-i18n="mapHint">Колесо — зум · перетаскивание — панорама · двойной клик — открыть клетку</span>
     </div>
     <canvas id="map"></canvas>
+    <div id="layerLoading" hidden style="position:absolute;left:50%;top:8px;transform:translateX(-50%);z-index:5;padding:3px 10px;border-radius:10px;background:rgba(11,15,20,.82);color:#e9e3d2;font:12px sans-serif;pointer-events:none"></div>
 <div class="icon-legend" id="iconLegend">
     <button type="button" class="legend-head" id="legendHead" aria-expanded="true"><span data-i18n="legendTitle">Легенда значков</span><span class="legend-caret">▾</span></button>
     <div class="legend-grid" id="legendGrid">
@@ -699,8 +720,15 @@ body.map-ui-hidden #mapView .map-controls { left:auto; right:max(8px, env(safe-a
       <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerPlants" checked><span data-i18n="layerPlants">Растительность</span></label>
       <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerMountains" checked><span data-i18n="layerMountains">Горы</span></label>
       <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerBuildings" checked><span data-i18n="layerBuildings">Значки зданий</span></label>
+      <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerAbandoned"><span data-i18n="layerAbandoned">Брошенные поселения</span><span id="abandonedCount" class="layer-count"></span></label>
       <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerWalls" checked><span data-i18n="layerWalls">Стены и укрепления</span></label>
       <label class="layer-line"><input type="checkbox" autocomplete="off" id="layerFailures"><span data-i18n="layerFailures">Ошибки проверки</span></label>
+      <div class="layer-extended" id="layerExtended" hidden>
+        <label class="layer-line" id="layerSkillLine" hidden><span data-i18n="layerSkill">Бонус навыка</span>
+          <select id="layerSkill" autocomplete="off"><option value="">—</option></select></label>
+        <label class="layer-line" id="layerOrgLine" hidden><span data-i18n="layerOrg">ID организации</span>
+          <input id="layerOrgId" type="number" min="1" autocomplete="off" style="width:7em"></label>
+      </div>
       <div class="layer-owner-title" data-i18n="layersOwners">Владения</div>
       <div class="layer-owner-list" id="layerOwnerList"></div>
     </div>
@@ -726,8 +754,8 @@ const I18N = {
     coordinatesLabel: "Координаты", terrainLabel: "Местность", zoomLabel: "Масштаб",
     layersTitle: "Слои карты",
     layerBoundaries: "Границы владений", layerSettlements: "Маркеры поселений",
-    layerResources: "Значки месторождений", layerBuildings: "Значки зданий", layerPlants: "Растительность", layerMountains: "Горы", layerGrid: "Сетка клеток", layerRoads: "Дороги", legHouse: "Дом", legField: "Поле, сад", legBarn: "Амбар, хлев", legSchool: "Школа", legTemple: "Храм", legMarket: "Рынок", legWorkshop: "Мастерская", legQuarry: "Карьер", legMine: "Рудник", legWell: "Колодец", legRoad: "Дорога", legConifer: "Хвойное", legBroad: "Лиственное", legFruit: "Плодовое", legMountain: "Гора", legPlateau: "Плато", legendTitle: "Легенда значков", legCastle: "Замок", layerWalls: "Стены и укрепления",
-    layerFailures: "Ошибки проверки", layersOwners: "Владения",
+    layerResources: "Значки месторождений", layerBuildings: "Значки зданий", layerPlants: "Растительность", layerMountains: "Горы", layerGrid: "Сетка клеток", layerRoads: "Дороги", layerAbandoned: "Брошенные поселения", layerLoading: "Загрузка слоя…", legHouse: "Дом", legField: "Поле, сад", legBarn: "Амбар, хлев", legSchool: "Школа", legTemple: "Храм", legMarket: "Рынок", legWorkshop: "Мастерская", legQuarry: "Карьер", legMine: "Рудник", legWell: "Колодец", legRoad: "Дорога", legConifer: "Хвойное", legBroad: "Лиственное", legFruit: "Плодовое", legMountain: "Гора", legPlateau: "Плато", legendTitle: "Легенда значков", legCastle: "Замок", layerWalls: "Стены и укрепления",
+    layerFailures: "Ошибки проверки", layersOwners: "Владения", layerSkill: "Бонус навыка", layerOrg: "ID организации",
     layerFreeOnly: "Показывать только свободные месторождения",
     snapshotFrom: "Снимок от", updatedPrefix: "обновлено", justNow: "только что",
     minAgo: (n) => `${n} мин назад`, hAgo: (n) => `${n} ч назад`,
@@ -751,8 +779,8 @@ const I18N = {
     coordinatesLabel: "Coordinates", terrainLabel: "Terrain", zoomLabel: "Zoom",
     layersTitle: "Map layers",
     layerBoundaries: "Domain borders", layerSettlements: "Settlement markers",
-    layerResources: "Deposit markers", layerBuildings: "Building icons", layerPlants: "Vegetation", layerMountains: "Mountains", layerGrid: "Cell grid", layerRoads: "Roads", legHouse: "House", legField: "Field, orchard", legBarn: "Barn, stable", legSchool: "School", legTemple: "Temple", legMarket: "Market", legWorkshop: "Workshop", legQuarry: "Quarry", legMine: "Mine", legWell: "Well", legRoad: "Road", legConifer: "Conifer", legBroad: "Broadleaf", legFruit: "Fruit tree", legMountain: "Mountain", legPlateau: "Plateau", legendTitle: "Icon legend", legCastle: "Castle", layerWalls: "Walls & fortifications",
-    layerFailures: "Scan failures", layersOwners: "Domains",
+    layerResources: "Deposit markers", layerBuildings: "Building icons", layerPlants: "Vegetation", layerMountains: "Mountains", layerGrid: "Cell grid", layerRoads: "Roads", layerAbandoned: "Abandoned settlements", layerLoading: "Loading layer…", legHouse: "House", legField: "Field, orchard", legBarn: "Barn, stable", legSchool: "School", legTemple: "Temple", legMarket: "Market", legWorkshop: "Workshop", legQuarry: "Quarry", legMine: "Mine", legWell: "Well", legRoad: "Road", legConifer: "Conifer", legBroad: "Broadleaf", legFruit: "Fruit tree", legMountain: "Mountain", legPlateau: "Plateau", legendTitle: "Icon legend", legCastle: "Castle", layerWalls: "Walls & fortifications",
+    layerFailures: "Scan failures", layersOwners: "Domains", layerSkill: "Skill bonus", layerOrg: "Organization ID",
     layerFreeOnly: "Show free deposits only",
     snapshotFrom: "Snapshot from", updatedPrefix: "updated", justNow: "just now",
     minAgo: (n) => `${n} min ago`, hAgo: (n) => `${n} h ago`,
@@ -1117,6 +1145,7 @@ function candidatesNear(wx, wy, cellRadius) {
 function loadMapData(mapData) {
   setLoadingProgress(75, "Построение индексов карты / Building map indexes", true);
   MAP_DATA = mapData;
+  setupExtendedLayers();
 
   // Not Math.min(...xs) — spreading 100k+ array elements as call arguments
   // blows the JS engine's stack (confirmed live once a scan passed ~150k
@@ -1269,6 +1298,7 @@ let showGrid = true;
 let showRoads = true;
 let showStars = true;
 let showPlantQuality = false;
+let showAbandoned = false; // слой: клетки со зданием (не растительность и не дорога) без владельца
 let showPlantHoverQuality = false;
 let landQualityMode = "off";
 let showFreeOnly = false; // слой: только свободные клетки (выбранного типа или все месторождения)
@@ -1358,12 +1388,13 @@ try {
     localStorage.setItem("lolsite.layer.landQualityMode", oldStars && oldNums ? "both" : oldStars ? "stars" : oldNums ? "numbers" : "off");
   }
 } catch (e) {}
-const SAVED_LAYERS = ["layerGrid", "layerRoads", "layerStars", "layerPlantQuality", "layerPlantHoverQuality", "layerBuildings", "layerPlants", "layerMountains"];
+const SAVED_LAYERS = ["layerGrid", "layerRoads", "layerStars", "layerPlantQuality", "layerPlantHoverQuality", "layerBuildings", "layerPlants", "layerMountains", "layerAbandoned"];
 for (const [id, setter] of [
   ["layerBoundaries", v => showBoundaries = v],
   ["layerSettlements", v => showSettlements = v],
   ["layerResources", v => showResourceMarkers = v],
   ["layerWalls", v => showWalls = v],
+  ["layerAbandoned", v => showAbandoned = v],
   ["layerBuildings", v => showBuildings = v],
   ["layerPlants", v => showPlants = v],
   ["layerMountains", v => showMountains = v],
@@ -1516,8 +1547,11 @@ document.getElementById("resetBtn").addEventListener("click", () => {
 let scale = 1, offX = 0, offY = 0;
 let dragging = false, lastX = 0, lastY = 0, dragMoved = false;
 
+// На телефонах DPR бывает 3–4: холст такого размера рисуется заметно медленнее,
+// а разница с 2 почти не видна — ограничиваем.
+function canvasDpr() { return Math.min(window.devicePixelRatio || 1, 2); }
 function fitToView() {
-  const dpr = window.devicePixelRatio || 1;
+  const dpr = canvasDpr();
   const worldW = (maxX - minX) * PT + PT;
   const worldH = (maxY - minY) * PT + PT;
   const viewW = canvas.width / dpr, viewH = canvas.height / dpr;
@@ -1527,7 +1561,7 @@ function fitToView() {
 }
 
 function resizeCanvas() {
-  const dpr = window.devicePixelRatio || 1;
+  const dpr = canvasDpr();
   const previousCenter = screenToWorld(canvas.width / dpr / 2, canvas.height / dpr / 2);
   const rect = canvas.parentElement.getBoundingClientRect();
   canvas.width = rect.width * dpr;
@@ -1883,12 +1917,10 @@ function drawResourceMarkers(viewW, viewH, size, dim) {
 // Значки зданий на свободных клетках (buildings.json рядом с index.html:
 // {ключ_континента: [[x, y, тип], ...]}). Рисуются при крупном масштабе.
 let BUILDINGS = {};
-fetch("buildings.json").then(r => r.ok ? r.json() : {}).then(j => { BUILDINGS = j; roadCache = {}; objCache = {}; render(); }).catch(() => {});
 // Дороги: клетки с дорогой (типы улиц/перекрёстков/развилок/мостов из buildings.json
 // + roads.json — клетки, где в описании земли стоит значок дороги) соединяются
 // линиями между соседними клетками; на плитках остаются только дома.
 let ROADS = {}, roadCache = {};
-fetch("roads.json").then(r => r.ok ? r.json() : {}).then(j => { ROADS = j; roadCache = {}; render(); }).catch(() => {});
 const ROAD_TYPES = new Set(["hstreet","vstreet","crossing","xcross","ostreet","orstreet","hbridge","vbridge","obridge","orbridge"]);
 function roadKey(x, y) { return (x + 50000) * 200000 + (y + 50000); }
 const OBJ_NAMES = {"house":["Дом","House"],"crossing":["Дом на перекрёстке","Crossroads house"],"xcross":["Диагональный перекрёсток","Diagonal crossroads"],"hstreet":["Улица запад-восток","East-west street"],"vstreet":["Улица север-юг","North-south street"],"ostreet":["Улица северо-восток - юго-запад","NE-SW street"],"orstreet":["Улица северо-запад - юго-восток","NW-SE street"],"square":["Площадь","Square"],"market":["Рыночная площадь","Marketplace"],"farm":["Ферма","Farm"],"hunting":["Хижина охотника","Hunter's hut"],"school":["Школа","School"],"temple":["Храм","Temple"],"well":["Колодец","Well"],"esfont":["Купель","Font"],"cemetery":["Кладбище","Cemetery"],"hut":["Хижины","Huts"],"sthouse":["Палафиты","Stilt houses"],"traphut":["Хижина трапперов","Trapper's hut"],"glthouse":["Маяк","Lighthouse"],"wcastle":["Деревянный замок","Wooden castle"],"dock":["Причал","Dock"],"fishboat":["Рыбацкие лодки","Fishing boats"],"hive":["Ульи","Beehives"],"bkhouse":["Пекарня","Bakehouse"],"bakery":["Лавка пекаря","Bakery"],"butcher":["Лавка мясника","Butcher"],"basketry":["Лавка плетельщика","Basketry"],"cutlery":["Лавка ножовщика","Cutlery"],"wheat":["Пшеничное поле","Wheat field"],"barley":["Ячменное поле","Barley field"],"oat":["Овсяное поле","Oat field"],"rice":["Рисовое поле","Rice field"],"hemp":["Конопляное поле","Hemp field"],"linen":["Льняное поле","Flax field"],"beet":["Свекольное поле","Beet field"],"potato":["Картофельное поле","Potato field"],"coffee":["Кофейная плантация","Coffee plantation"],"tea":["Чайная плантация","Tea plantation"],"hevea":["Плантация гевеи","Hevea plantation"],"field":["Вспаханное поле","Ploughed field"],"fallow":["Поле под паром","Fallow field"],"meadow":["Луг для сена","Hay meadow"],"vgarden":["Огород","Vegetable garden"],"orchard":["Плодовый сад","Orchard"],"plant":["Лесопосадка","Tree plantation"],"glasswrt":["Солеросовое поле","Glasswort field"],"barn":["Амбар","Barn"],"stable":["Конюшня","Stable"],"cowshed":["Коровник","Cowshed"],"pigsty":["Свинарник","Pigsty"],"sheepfld":["Овчарня","Sheepfold"],"whouse":["Склад","Warehouse"],"slaught":["Скотобойня","Slaughterhouse"],"limeston":["Известняковый карьер","Limestone quarry"],"sandston":["Песчаниковый карьер","Sandstone quarry"],"basalt":["Базальтовый карьер","Basalt quarry"],"granite":["Гранитный карьер","Granite quarry"],"clay":["Глиняный карьер","Clay pit"],"slate":["Шиферный карьер","Slate quarry"],"marble":["Мраморный карьер","Marble quarry"],"sand":["Песчаный карьер","Sand pit"],"smarsh":["Соляные пруды","Salt ponds"],"peat":["Торфяное болото","Peat bog"],"iron":["Железная шахта","Iron mine"],"tin":["Оловянная шахта","Tin mine"],"copper":["Медная шахта","Copper mine"],"silver":["Серебряная шахта","Silver mine"],"gold":["Золотая шахта","Gold mine"],"lead":["Свинцовая шахта","Lead mine"],"coal":["Угольная шахта","Coal mine"],"diamond":["Алмазная шахта","Diamond mine"],"saphir":["Сапфировая шахта","Sapphire mine"],"ruby":["Рубиновая шахта","Ruby mine"],"emerald":["Изумрудная шахта","Emerald mine"],"sulfur":["Серная шахта","Sulfur mine"],"workshop":["Мастерская","Workshop"],"forge":["Кузница","Forge"],"carpent":["Мастерская плотника","Carpenter's workshop"],"cabinet":["Столярная мастерская","Cabinetmaker's workshop"],"cooper":["Бондарная мастерская","Cooperage"],"wheelwr":["Колёсная мастерская","Wheelwright"],"toolfac":["Инструментальная мануфактура","Tool factory"],"nailfac":["Скобяная мастерская","Nail factory"],"pottery":["Гончарня","Pottery"],"byard":["Кирпичная мануфактура","Brickyard"],"limekiln":["Известковая печь","Lime kiln"],"bfurnace":["Сыродутная печь","Bloomery furnace"],"charcoal":["Угольная печь","Charcoal kiln"],"tarkiln":["Смоляная печь","Tar kiln"],"tannery":["Дубильня","Tannery"],"winery":["Винодельня","Winery"],"oilmill":["Маслобойня","Oil mill"],"pprmill":["Бумажная мануфактура","Paper mill"],"grnmill":["Мукомольная мельница","Grain mill"],"watmill":["Водяная мельница","Water mill"],"spinfac":["Прядильная мануфактура","Spinning factory"],"ropefac":["Верёвочная мастерская","Rope factory"],"hbridge":["Мост","Bridge"],"vbridge":["Мост","Bridge"],"obridge":["Мост","Bridge"],"orbridge":["Мост","Bridge"],"tree:teak":["Тик","Teak"],"tree:weirwood":["Чардрево","Weirwood"],"tree:spruce":["Ель","Spruce"],"tree:beech":["Бук","Beech"],"tree:oak":["Дуб","Oak"],"tree:fir":["Пихта","Fir"],"tree:pine":["Сосна","Pine"],"tree:larch":["Лиственница","Larch"],"tree:ash":["Ясень","Ash"],"tree:holmoak":["Каменный дуб","Holm oak"],"tree:maple":["Клён","Maple"],"tree:juniper":["Можжевельник","Juniper"],"tree:lime":["Липа","Lime"],"tree:cypress":["Кипарис","Cypress"],"tree:cedar":["Кедр","Cedar"],"tree:fern":["Папоротник","Fern"],"tree:poplar":["Тополь","Poplar"],"tree:chestnut":["Каштан","Chestnut"],"tree:corkoak":["Пробковый дуб","Cork oak"],"tree:hazel":["Орешник","Hazel"],"tree:birch":["Берёза","Birch"],"tree:vine":["Виноградная лоза","Grapevine"],"tree:olive":["Олива","Olive"],"tree:walnut":["Грецкий орех","Walnut"],"tree:plum":["Слива","Plum"],"tree:alder":["Ольха","Alder"],"tree:almond":["Миндаль","Almond"],"tree:apple":["Яблоня","Apple"],"tree:willow":["Ива","Willow"],"tree:bamboo":["Бамбук","Bamboo"],"tree:pear":["Груша","Pear"],"tree:lemon":["Лимон","Lemon"],"tree:cherry":["Вишня","Cherry"],"tree:apricot":["Абрикос","Apricot"],"tree:acacia":["Акация","Acacia"],"tree:banyan":["Баньян","Banyan"],"tree:orange":["Апельсин","Orange"],"tree:palm":["Пальма","Palm"],"tree:nutmeg":["Мускатный орех","Nutmeg"],"snestrt":["Поворот улицы (юг - северо-восток)","Street bend"],"eswstrt":["Поворот улицы (восток - юго-запад)","Street bend"],"enwstrt":["Поворот улицы (восток - северо-запад)","Street bend"],"wnestrt":["Поворот улицы (запад - северо-восток)","Street bend"],"wsestrt":["Поворот улицы (запад - юго-восток)","Street bend"],"nsestrt":["Поворот улицы (север - юго-восток)","Street bend"],"nswstrt":["Поворот улицы (север - юго-запад)","Street bend"],"snwstrt":["Поворот улицы (юг - северо-запад)","Street bend"],"wfork":["Развилка улиц","Street fork"],"efork":["Развилка улиц","Street fork"],"nfork":["Развилка улиц","Street fork"],"sfork":["Развилка улиц","Street fork"],"nwfork":["Развилка улиц","Street fork"],"nefork":["Развилка улиц","Street fork"],"swfork":["Развилка улиц","Street fork"],"sefork":["Развилка улиц","Street fork"]};
@@ -1904,11 +1936,53 @@ function cellObjectCode(x, y) {
   }
   return m.get(x + "," + y) || "";
 }
+function isRoadType(t) { return ROAD_TYPES.has(t) || t.endsWith("strt") || t.endsWith("fork"); }
+// Брошенное поселение: на клетке стоит здание (не дорога и не дикорастущее
+// растение — деревья/лозы/папоротники в buildings.json не попадают), а по
+// скану клетка свободна (p[4] === 0, владельца нет).
+let abandonedCache = {};
+// Число брошенных, посчитанное при сборке (build_site.py) — подпись слоя видна до загрузки buildings.
+const ABANDONED_COUNTS = {};
+function abandonedCells() {
+  const key = ALL_DATA.continents[currentContinentIdx].key;
+  if (abandonedCache[key]) return abandonedCache[key];
+  if (!layerReady("buildings")) return null;
+  const out = [], set = new Set();
+  for (const b of BUILDINGS[key] || []) {
+    const t = b[2];
+    if (!t || t === "plant" || isRoadType(t)) continue;
+    const p = pointByCoord.get(b[0] + "," + b[1]);
+    if (p && p[4] === 0) { out.push(p); set.add(b[0] + "," + b[1]); }
+  }
+  out.set = set;
+  return abandonedCache[key] = out;
+}
+function updateAbandonedCount() {
+  const el = document.getElementById("abandonedCount"); if (!el) return;
+  const key = ALL_DATA.continents[currentContinentIdx].key;
+  const cells = layerReady("buildings") ? abandonedCells() : null;
+  const n = cells ? cells.length : ABANDONED_COUNTS[key];
+  el.textContent = Number.isFinite(n) ? " (" + n.toLocaleString(currentLang === "ru" ? "ru-RU" : "en-US") + ")" : (layerLoad && layerLoad["buildings:" + key] === "loading" ? " (…)" : "");
+}
+window.getAbandonedSet = () => { ensureLayer("buildings"); const a = abandonedCells(); return a ? a.set : null; };
+function drawAbandoned(viewW, viewH, sz) {
+  if (!showAbandoned) return;
+  const cells = abandonedCells(); if (!cells) return;
+  const pad = Math.max(3, sz) + 4, lw = Math.max(1.5, Math.min(sz * 0.12, 4));
+  ctx.save(); ctx.lineWidth = lw; ctx.strokeStyle = "#ff4fd8"; ctx.fillStyle = sz < 4 ? "#ff4fd8" : "rgba(255,79,216,.28)";
+  for (const p of cells) {
+    const [sx, sy] = worldToScreen(p[0], p[1]);
+    if (sx < -pad || sy < -pad || sx > viewW + pad || sy > viewH + pad) continue;
+    if (sz < 4) { ctx.fillRect(sx - 1, sy - 1, 3, 3); continue; }
+    ctx.fillRect(sx, sy, sz, sz); ctx.strokeRect(sx + lw / 2, sy + lw / 2, sz - lw, sz - lw);
+  }
+  ctx.restore();
+}
 function cellObjectName(x, y) {
   const t = cellObjectCode(x, y); if (!t) return "";
   const n = OBJ_NAMES[t]; return n ? n[currentLang === "ru" ? 0 : 1] : t;
 }
-window.cellObjectCode = cellObjectCode;
+window.cellObjectCode = (x, y) => { ensureLayer("buildings"); ensureLayer("trees"); ensureLayer("plants"); return cellObjectCode(x, y); };
 window.cellObjectName = cellObjectName;
 window.getPlantData = () => PLANTS[ALL_DATA.continents[currentContinentIdx].key] || {};
 window.cellPlantQuality = (x, y, species) => {
@@ -1934,7 +2008,7 @@ function getRoadSet() {
   if (roadCache[key]) return roadCache[key];
   const set = new Set(), pts = [];
   const add = (x, y) => { const k = roadKey(x, y); if (!set.has(k)) { set.add(k); pts.push(x, y); } };
-  for (const b of BUILDINGS[key] || []) { const t = b[2]; if (ROAD_TYPES.has(t) || t.endsWith("strt") || t.endsWith("fork")) add(b[0], b[1]); }
+  for (const b of BUILDINGS[key] || []) { if (isRoadType(b[2])) add(b[0], b[1]); }
   const r = ROADS[key] || [];
   for (let i = 0; i < r.length; i += 2) add(r[i], r[i + 1]);
   return roadCache[key] = { set, pts };
@@ -2198,9 +2272,53 @@ function drawBuildings(viewW, viewH, size, dim) {
 // {ключ_континента: {порода: [x0, y0, x1, y1, ...]}}). Только при крупном масштабе.
 let TREES = {};
 let PLANTS = {}, FRESH = {}, freshSetCache = {}, plantQualityIndex = {};
-fetch("plants.json").then(r => r.ok ? r.json() : {}).then(j => { PLANTS = j; plantQualityIndex = {}; if (window.refreshListOptions) window.refreshListOptions(); if (window.refreshObjectCard) window.refreshObjectCard(); }).catch(() => {});
 fetch("fresh.json").then(r => r.ok ? r.json() : {}).then(j => { FRESH = j; freshSetCache = {}; if (window.refreshListOptions) window.refreshListOptions(); if (window.refreshFogLive) window.refreshFogLive(); }).catch(() => {});
-fetch("trees.json").then(r => r.ok ? r.json() : {}).then(j => { TREES = j; objCache = {}; render(); }).catch(() => {});
+// Тяжёлые слои (здания, дороги, деревья, растения) грузятся лениво: только
+// когда слой включён и масштаб дошёл до уровня отрисовки, либо когда их
+// просят список/поиск/карточка объекта. Сначала берётся файл текущего
+// континента (<слой>.<ключ>.json), при его отсутствии — общий <слой>.json.
+var LAYER_STORES = {buildings: BUILDINGS, roads: ROADS, trees: TREES, plants: PLANTS};
+var layerLoad = {}; // "слой:ключ" -> "loading" | "done"
+function layerReady(name) { return !!layerLoad && layerLoad[name + ":" + ALL_DATA.continents[currentContinentIdx].key] === "done"; }
+function updateLayerLoading() {
+  const el = document.getElementById("layerLoading"); if (!el) return;
+  const busy = !!layerLoad && Object.values(layerLoad).includes("loading");
+  el.hidden = !busy; if (busy) el.textContent = t("layerLoading");
+}
+function ensureLayer(name) {
+  if (!LAYER_STORES) return false; // render() до объявления слоёв
+  const key = ALL_DATA.continents[currentContinentIdx].key, id = name + ":" + key;
+  if (layerLoad[id]) return layerLoad[id] === "done";
+  layerLoad[id] = "loading"; updateLayerLoading(); updateAbandonedCount();
+  const getJson = url => fetch(url).then(r => r.ok ? r.json() : null).catch(() => null);
+  getJson(name + "." + key + ".json").then(one => {
+    if (one) { LAYER_STORES[name][key] = one; layerLoad[id] = "done"; return; }
+    return getJson(name + ".json").then(all => {
+      // Общий файл содержит все континенты — второй раз его не качаем.
+      Object.assign(LAYER_STORES[name], all || {});
+      for (const c of ALL_DATA.continents) layerLoad[name + ":" + c.key] = "done";
+    });
+  }).then(() => onLayerLoaded(name));
+  return false;
+}
+function onLayerLoaded(name) {
+  updateLayerLoading();
+  if (name === "buildings") { roadCache = {}; objCache = {}; abandonedCache = {}; updateAbandonedCount(); if (window.refreshListOptions) window.refreshListOptions(); }
+  if (name === "roads") roadCache = {};
+  if (name === "trees") objCache = {};
+  if (name === "plants") { plantQualityIndex = {}; if (window.refreshListOptions) window.refreshListOptions(); }
+  if (name !== "roads" && window.refreshObjectCard) window.refreshObjectCard();
+  render();
+}
+// Какие слои нужны при текущем масштабе (вызывается из render()).
+function ensureVisibleLayers(sz) {
+  const ownerView = selectedOwnerKey !== null;
+  if (showAbandoned || (!ownerView && ((showBuildings && sz >= 8) || (showRoads && sz >= 4)))) ensureLayer("buildings");
+  if (!ownerView && showRoads && sz >= 4) ensureLayer("roads");
+  if (!ownerView && sz >= 8 && (showPlants || showPlantHoverQuality)) ensureLayer("trees");
+  if (mapTools.plant !== null || (!ownerView && sz >= 8 && (showPlantQuality || showPlantHoverQuality))) ensureLayer("plants");
+}
+window.ensureLayer = ensureLayer;
 const MOUNTAIN_STYLE = {
   limeston:["#cbc4af","#8d866f"], basalt:["#575762","#2a2a32"], sandston:["#d3a465","#8f6a38"],
   granite:["#a58f8f","#6a5858"], marble:["#eeeae4","#a6a29c"], volcano:["#8c3b2a","#3a1510"], plateau:["#b39d77","#7b6a4a"],
@@ -2294,6 +2412,62 @@ document.getElementById("legendHead").addEventListener("click", () => {
   const box = document.getElementById("iconLegend"), shut = box.classList.toggle("collapsed");
   document.getElementById("legendHead").setAttribute("aria-expanded", String(!shut));
   try { localStorage.setItem("lolsite.legend", shut ? "0" : "1"); } catch (e) {}
+});
+
+// Слой бонусов навыков и фильтр по id организации (расширенный скан,
+// MAP_DATA.skillCells / MAP_DATA.ownerOrgIds из build_map_artifact.py).
+// На старых данных этих ключей нет — элементы остаются скрытыми, а
+// drawSkillLayer ничего не рисует.
+let selectedSkill = "";
+const SKILL_NAMES = {harvest: "Сбор урожая", hunt: "Охота", dig: "Рытьё", salt: "Производство соли", ricegrow: "Рисоводство",
+  charcoal: "Сжигание древесины", trap: "Трапперство", survey: "Межевание", woodcut: "Вырубка", plough: "Вспашка",
+  sow: "Посев", bee: "Пчеловодство", fire: "Топка", mason: "Кладка", carry: "Перевозка", draw: "Вычерпывание воды",
+  destroy: "Разрушение", melee: "Ближний бой", polearm: "Древковое оружие"};
+function setupExtendedLayers() {
+  const skills = MAP_DATA.skillNames || Object.keys(MAP_DATA.skillCells || {}).sort();
+  const orgIds = MAP_DATA.ownerOrgIds || {};
+  const sel = document.getElementById("layerSkill");
+  sel.innerHTML = '<option value="">—</option>' + skills.map(k => `<option value="${k}">${SKILL_NAMES[k] || k}</option>`).join("");
+  if (!skills.includes(selectedSkill)) selectedSkill = "";
+  sel.value = selectedSkill;
+  document.getElementById("layerSkillLine").hidden = !skills.length;
+  document.getElementById("layerOrgLine").hidden = !Object.keys(orgIds).length;
+  document.getElementById("layerExtended").hidden = !skills.length && !Object.keys(orgIds).length;
+}
+function ownerIdxByOrgId(orgId) {
+  for (const [idx, id] of Object.entries(MAP_DATA.ownerOrgIds || {})) if (id === orgId) return Number(idx);
+  return null;
+}
+function skillColor(b) {
+  const t = Math.min(1, Math.abs(b) / 50);
+  return b >= 0 ? `rgba(80,${150 + Math.round(105 * t)},90,${0.45 + 0.5 * t})` : `rgba(${150 + Math.round(105 * t)},70,60,${0.45 + 0.5 * t})`;
+}
+function drawSkillLayer(viewW, viewH, sz) {
+  if (selectedSkill && !MAP_DATA.skillCells && MAP_DATA.skillNames && !MAP_DATA.skillLoading) {
+    // skills.<key>.json грузится лениво, при первом выборе навыка.
+    const data = MAP_DATA;
+    data.skillLoading = true;
+    fetch("skills." + ALL_DATA.continents[currentContinentIdx].key + ".json")
+      .then(r => r.ok ? r.json() : {}).catch(() => ({}))
+      .then(j => { data.skillCells = j; render(); });
+  }
+  const flat = selectedSkill && MAP_DATA.skillCells ? MAP_DATA.skillCells[selectedSkill] : null;
+  if (!flat) return;
+  const s = Math.max(2, sz + 1);
+  for (let i = 0; i + 2 < flat.length; i += 3) {
+    const [sx, sy] = worldToScreen(flat[i], flat[i + 1]);
+    if (sx < -s || sy < -s || sx > viewW + s || sy > viewH + s) continue;
+    ctx.fillStyle = skillColor(flat[i + 2]);
+    ctx.fillRect(sx - 0.5, sy - 0.5, s, s);
+  }
+}
+document.getElementById("layerSkill").addEventListener("change", e => { selectedSkill = e.target.value; render(); });
+document.getElementById("layerOrgId").addEventListener("change", e => {
+  const idx = ownerIdxByOrgId(Number(e.target.value));
+  selectedOwnerKey = idx;
+  selected = null;
+  renderOwnerLegend();
+  render();
 });
 
 // Highlight the latest published discoveries and live, not-yet-published cells.
@@ -2399,13 +2573,15 @@ const fogLive = (() => {
 
 function render() {
   if (!baseCanvas || !canvas.width || !canvas.height) return;
-  const dpr = window.devicePixelRatio || 1;
+  const dpr = canvasDpr();
   const viewW = canvas.width / dpr, viewH = canvas.height / dpr;
   ctx.fillStyle = "#0b0f14";
   ctx.fillRect(0, 0, viewW, viewH);
   mapTools.drawUnknown(viewW, viewH);
 
   const sz = PT * scale;
+  ensureVisibleLayers(sz);
+  if (showAbandoned) updateAbandonedCount();
 
   const [imgX, imgY] = worldToScreen(minX, minY);
   ctx.save();
@@ -2475,6 +2651,8 @@ function render() {
   // Keep ownership contours crisp over the flat overview at every zoom.
   if (showBoundaries) drawVisibleOwnerBoundaries(viewW, viewH, sz, dim);
 
+  drawSkillLayer(viewW, viewH, sz);
+
   if (showFailed) {
     ctx.fillStyle = "#ff3b3b";
     const fsz = Math.max(2, sz + 1);
@@ -2494,6 +2672,7 @@ function render() {
   drawRoads(viewW, viewH, sz, dim);
   drawNatureIcons(viewW, viewH, sz, dim);
   drawBuildings(viewW, viewH, sz, dim);
+  drawAbandoned(viewW, viewH, sz);
   drawQualityStars(viewW, viewH, sz, dim);
   drawPlantQuality(viewW, viewH, sz, dim);
   drawLandStars(viewW, viewH, sz, dim);
@@ -2566,7 +2745,7 @@ const jumpInput = document.getElementById("jumpInput");
 const jumpBtn = document.getElementById("jumpBtn");
 
 function jumpTo(wx, wy) {
-  const dpr = window.devicePixelRatio || 1;
+  const dpr = canvasDpr();
   const viewW = canvas.width / dpr, viewH = canvas.height / dpr;
   scale = Math.max(scale, 2.5);
   offX = viewW / 2 - (wx - minX) * PT * scale;
@@ -2886,7 +3065,7 @@ const mapTools = (() => {
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const words = {
     terrainFeature:['Условие местности','Terrain characteristic'], terrainFeatureSecond:['Второе условие','Second characteristic'], terrainFeatureSecondAll:['Любое второе условие','Any second characteristic'], terrainFeatureAll:['Все условия','All characteristics'], terrainFeatureMissing:['Нет данных для этого континента','No data for this continent'], terrainFeatureLoading:['Загрузка…','Loading…'],
-    freshOnly:['Только новые находки перескана','Only new finds of the rescan'], copyGame:['Ссылка на игру','Game link'],
+    freshOnly:['Только новые находки перескана','Only new finds of the rescan'], abandonedOnly:['Только брошенные поселения','Only abandoned settlements'], copyGame:['Ссылка на игру','Game link'],
     close:['Закрыть','Close'], category:['Категория','Category'], resources:['Ресурсы','Resources'], nature:['Растения','Plants'], natureIntro:['Деревья и растения: качество, свободные клетки и лучшие находки.','Trees and plants: quality, free cells, and best finds.'], findPlant:['Найти растение','Find a plant'], plantPlaceholder:['Дуб…','Oak…'], byCount:['По количеству','By count'], owners:['Владения','Domains'], plan:['План','Plan'], list:['Список','List'],
     terrain:['Местность','Terrain'], surfaceTypes:['Типы поверхности','Surface types'], mode_terrain:['Местность','Terrain'], mode_owners:['По владельцам','By owner'], mode_resources:['Минералы','Minerals'], findOwner:['Поселение или лорд','Settlement or lord'], visibleOnly:['В видимой области','In visible area'], favoritesOnly:['Только избранное','Favorites only'],
     sort:['Сортировка','Sort'], bySize:['По площади','By area'], byName:['По названию','By name'], byDistance:['По расстоянию','By distance'], byQuality:['По качеству','By quality'],
@@ -3063,6 +3242,7 @@ const mapTools = (() => {
     document.querySelectorAll('[data-panel]').forEach(b=>{const active=searching?b.dataset.panel==='search':b.dataset.panel===panel;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));});
     if(panel!=='plan') setTool('pan');
     if(panel==='owner') renderOwners();
+    if((panel==='list'||panel==='nature')&&window.ensureLayer) window.ensureLayer('plants'); // растения грузятся по требованию
     if(panel==='list') renderList();
     if(panel==='nature') renderNature();
     render();
@@ -3312,14 +3492,15 @@ const mapTools = (() => {
   function renderList() {
     const val=$('listType').value, minQ=Number($('listQuality').value)||0, free=$('listFree').checked;
     const fs=$('listFresh').checked&&window.getFreshSet?window.getFreshSet():null;
-    const rows=[], keep=p=>!(p[3]<minQ||(free&&p[4]!==0)||(fs&&!fs.has(p[0]+','+p[1])));
+    const abandoned=$('listAbandoned').checked&&window.getAbandonedSet?(window.getAbandonedSet()||new Set()):null;
+    const rows=[], keep=p=>!(p[3]<minQ||(free&&p[4]!==0)||(fs&&!fs.has(p[0]+','+p[1]))||(abandoned&&!abandoned.has(p[0]+','+p[1])));
     if(val.startsWith('p:')) {
       const code=val.slice(2), a=(window.getPlantData()[code])||[], nm=window.objTypeName(code);
       for(let i=0;i<a.length;i+=4){ const p=[a[i],a[i+1],-1,a[i+2],a[i+3],nm]; if(keep(p)) rows.push(p); }
     } else {
       const code=val?val.slice(2):'';
       MAP_DATA.types.forEach((t,i)=>{
-        if(val?t.code!==code:!t.mineral) return;
+        if(val?t.code!==code:(!t.mineral&&!abandoned)) return;
         for(const p of pointsByType[i]) if(keep(p)) rows.push(p);
       });
     }
@@ -3689,7 +3870,7 @@ const mapTools = (() => {
     });
     $('resourceType').innerHTML=`<option value="">${label('allResources')}</option>`+MAP_DATA.types.filter(t=>t.mineral).map(t=>`<option value="${esc(t.code)}">${esc(typeName(t))}</option>`).join('');
     $('landType').innerHTML=MAP_DATA.types.filter(t=>!t.mineral).map(t=>`<option value="${esc(t.code)}">${esc(typeName(t))}</option>`).join('');
-    $('listType').value='';buildListOptions();$('listQuality').value='0';$('listFree').checked=true;$('listFresh').checked=false;listLimit=100;
+    $('listType').value='';buildListOptions();$('listQuality').value='0';$('listFree').checked=true;$('listFresh').checked=false;$('listAbandoned').checked=false;listLimit=100;
     $('natureSearch').value='';$('natureSort').value='quality';
     $('resourceOrigin').value=formatCoords(...reference);$('objectCard').hidden=true;$('resourceResults').hidden=true;
     $('ownerSearch').value='';ownerLimit=80;$('resourceQuality').value='0';$('resourceRadius').value='';$('resourceFree').checked=true;$('resourceSort').value='distance';
@@ -3737,7 +3918,7 @@ const mapTools = (() => {
   $('natureResults').onclick=e=>{const b=e.target.closest('[data-resource-cell]');if(b){e.preventDefault();pickCell(...b.dataset.resourceCell.split(',').map(Number),true);}};
   $('natureSearch').addEventListener('input',renderNature);$('natureSort').addEventListener('change',renderNature);
   $('listResults').addEventListener('click',e=>{const b=e.target.closest('[data-copy-game]'); if(!b) return; const [x,y]=b.dataset.copyGame.split(',').map(Number); copyText(gameUrl(x,y)); notice(tr('Ссылка на игру скопирована','Game link copied'));});
-  for(const id of ['listType','listQuality','listFree','listFresh']) $(id).addEventListener(id==='listQuality'?'input':'change',()=>{listLimit=100;renderList();});
+  for(const id of ['listType','listQuality','listFree','listFresh','listAbandoned']) $(id).addEventListener(id==='listQuality'?'input':'change',()=>{listLimit=100;renderList();});
   $('resourceResults').onclick=e=>{const b=e.target.closest('[data-resource-cell]');if(b)pickCell(...b.dataset.resourceCell.split(',').map(Number),true);};
   $('landResults').onclick=e=>{const b=e.target.closest('[data-resource-cell]');if(b)pickCell(...b.dataset.resourceCell.split(',').map(Number),true);};
   $('plantResults').onclick=e=>{const b=e.target.closest('[data-resource-cell]');if(b)pickCell(...b.dataset.resourceCell.split(',').map(Number),true);};
@@ -3851,12 +4032,15 @@ const mapTools = (() => {
     if(e.pointerType==='mouse')return;e.preventDefault();canvas.setPointerCapture(e.pointerId);touches.set(e.pointerId,[e.clientX,e.clientY]);
     pointerStart={x:e.clientX,y:e.clientY,moved:touches.size>1};previousTouch=touches.size===2?touchSnapshot():null;
   });
+  // Не чаще одного кадра: pointermove на телефонах приходит чаще частоты экрана.
+  let panFrame=0;
+  function scheduleRender(){if(!panFrame)panFrame=requestAnimationFrame(()=>{panFrame=0;render();});}
   function touchSnapshot(){const a=[...touches.values()];return {x:(a[0][0]+a[1][0])/2,y:(a[0][1]+a[1][1])/2,d:MapGeometry.distance(a[0],a[1])};}
   canvas.addEventListener('pointermove',e=>{
     if(!touches.has(e.pointerId))return;e.preventDefault();const old=touches.get(e.pointerId);touches.set(e.pointerId,[e.clientX,e.clientY]);
     if(Math.hypot(e.clientX-pointerStart.x,e.clientY-pointerStart.y)>5)pointerStart.moved=true;
     if(touches.size===2){const t=touchSnapshot(),r=canvas.getBoundingClientRect();if(previousTouch){offX+=t.x-previousTouch.x;offY+=t.y-previousTouch.y;zoomAt(t.d/(previousTouch.d||t.d),t.x-r.left,t.y-r.top);}previousTouch=t;pointerStart.moved=true;}
-    else if(state.tool==='pan'){offX+=e.clientX-old[0];offY+=e.clientY-old[1];render();}
+    else if(state.tool==='pan'){offX+=e.clientX-old[0];offY+=e.clientY-old[1];scheduleRender();}
   });
   function endTouch(e){if(!touches.has(e.pointerId))return;e.preventDefault();const click=touches.size===1&&!pointerStart.moved&&e.type!=='pointercancel';touches.delete(e.pointerId);previousTouch=null;if(click)clickAt(e.clientX,e.clientY);}
   canvas.addEventListener('pointerup',endTouch);canvas.addEventListener('pointercancel',endTouch);
@@ -3932,7 +4116,7 @@ hideLoadingOverlay();
     const processed = Number(d.processed), total = Number(d.total);
     if (!Number.isFinite(processed) || !Number.isFinite(total) || total <= 0 || processed < 0 || processed > total) return unavailable();
     const observed = Date.parse(d.checked_at), updated = Date.parse(d.log_updated_at);
-    const stale = !Number.isFinite(observed) || Date.now() - observed > 20 * 60 * 1000 || (d.state === 'running' && (!Number.isFinite(updated) || Date.now() - updated > 25 * 60 * 1000));
+    const stale = d.state !== 'complete' && (!Number.isFinite(observed) || Date.now() - observed > 20 * 60 * 1000) || (d.state === 'running' && (!Number.isFinite(updated) || Date.now() - updated > 25 * 60 * 1000));
     const pct = Math.min(100, processed / total * 100);
     const fmt = new Intl.NumberFormat(pick('ru-RU','en-US'));
     const state = stale ? pick('нет свежих данных','stale') : d.state === 'complete' ? pick('завершён','complete') : d.state === 'running' ? pick('идёт','running') : pick('остановлен','stopped');
@@ -3944,10 +4128,12 @@ hideLoadingOverlay();
     progress.setAttribute('aria-label', pick('Прогресс сканирования', 'Scan progress'));
     count.textContent = d.phase === 'fog' ? pick('Проверено примерно: ', 'Approximately checked: ') + fmt.format(processed) + pick(' · в очереди: ', ' · queued: ') + fmt.format(Number(d.queue) || 0) : fmt.format(processed) + ' / ' + fmt.format(total) + pick(' клеток на этапе', ' cells in stage');
     fog.textContent = hasFog ? pick('Из старого тумана открылись: ', 'Revealed from old fog: ') + fmt.format(d.old_fog_opened) + ' / ' + fmt.format(d.old_fog_total) + (Number.isInteger(d.old_fog_still) ? pick(' · всё ещё туман: ', ' · still fogged: ') + fmt.format(d.old_fog_still) : '') + (d.old_fog_errors ? pick(' · ошибки: ', ' · errors: ') + fmt.format(d.old_fog_errors) : '') : '';
-    const seconds = Number(d.eta_seconds);
+    const etaAt = Date.parse(d.eta_at);
+    const seconds = Number.isFinite(etaAt) ? (etaAt - Date.now()) / 1000 : Number(d.eta_seconds);
     if (!stale && d.state === 'running' && Number.isFinite(seconds) && seconds > 0) {
       const minutes = Math.max(1, Math.round(seconds / 60));
-      eta.textContent = pick('Осталось на этот этап примерно: ', 'Estimated remaining in this stage: ') + Math.floor(minutes / 60) + pick(' ч ', ' h ') + (minutes % 60) + pick(' мин', ' min');
+      const finish = new Date(Date.now() + seconds * 1000).toLocaleString(pick('ru-RU','en-US'), {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
+      eta.textContent = pick('Осталось на этот этап примерно: ', 'Estimated remaining in this stage: ') + Math.floor(minutes / 60) + pick(' ч ', ' h ') + (minutes % 60) + pick(' мин', ' min') + pick(' (окончание ≈ ', ' (done ≈ ') + finish + ')';
     } else eta.textContent = d.state === 'running' ? pick('Общее время зависит от новых клеток и тумана.', 'Total time depends on newly discovered cells and fog.') : '';
     const fogTime=Date.parse(d.fog_checkpoint_at);
     time.textContent = Number.isFinite(fogTime) && hasFog ? pick('Счётчик тумана сохранён: ', 'Fog count saved: ') + new Date(fogTime).toLocaleString(pick('ru-RU','en-US')) : Number.isFinite(updated) ? pick('Последняя отметка: ', 'Last checkpoint: ') + new Date(updated).toLocaleString(pick('ru-RU','en-US')) : '';
