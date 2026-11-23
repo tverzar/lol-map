@@ -76,16 +76,70 @@
   .switch-btn:hover { color: var(--ink); }
   .switch-btn.active { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
   .topbar-right { display: flex; align-items: center; gap: 10px; flex: none; }
-  /* Переключатель континента — тот же select, а не кнопки: список
-     потенциально длиннее (может вырасти до многих континентов), select
-     масштабируется без переноса на несколько строк, кнопки — нет.
-     Скрыт целиком, когда континент всего один (см. renderContinentSwitch). */
-  #continentSwitch {
-    background: var(--bg); color: var(--ink); border: 1px solid var(--panel-border);
-    border-radius: 7px; padding: 6px 10px; font-family: inherit; font-size: 0.78rem;
-    cursor: pointer;
+  /* Выбор континента: на первом заходе — стартовый экран с крупными
+     карточками (#continentDashboard), потом — кнопка в шапке, раскрывающая
+     полосу карточек (#continentStrip). Превью — preview.<key>.png из
+     write_site_data(). Кнопка скрыта, пока карта не загружена или когда
+     континент всего один. */
+  .continent-picker { position: relative; flex: 0 1 auto; min-width: 0; }
+  .continent-picker[hidden] { display: none; }
+  #continentButton {
+    display: inline-flex; align-items: center; gap: 6px; max-width: 100%; min-height: 32px;
+    background: var(--bg); color: var(--accent); border: 1px solid var(--accent);
+    border-radius: 8px; padding: 5px 12px; font: inherit; font-size: 0.82rem; cursor: pointer;
   }
-  #continentSwitch:focus { outline: none; border-color: var(--accent); }
+  #continentButton:disabled { opacity: .6; cursor: progress; }
+  #continentButton .cpick-btn-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #continentButton .cpick-caret { transition: transform .15s; }
+  #continentButton[aria-expanded="true"] .cpick-caret { transform: rotate(180deg); }
+  #continentStrip {
+    position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%); z-index: 900;
+    display: flex; gap: 10px; align-items: stretch; max-width: calc(100vw - 16px); overflow-x: auto;
+    background: rgba(18, 24, 32, .97); border: 1px solid var(--panel-border); border-radius: 12px;
+    padding: 10px; box-shadow: 0 10px 30px rgba(0, 0, 0, .5); overscroll-behavior: contain;
+  }
+  #continentStrip[hidden] { display: none; }
+  .cpick-card {
+    display: flex; flex-direction: column; padding: 0; margin: 0; text-align: left;
+    background: var(--panel); color: var(--ink); border: 1px solid var(--panel-border);
+    border-radius: 10px; overflow: hidden; cursor: pointer; font: inherit;
+    transition: transform .15s, border-color .15s;
+  }
+  .cpick-card:hover { transform: translateY(-2px); border-color: var(--ink-dim); }
+  .cpick-card[aria-current="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .cpick-prev { display: flex; align-items: center; justify-content: center; background: #0b1016; aspect-ratio: 1 / 1; padding: 8px; }
+  .cpick-prev img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
+  .cpick-meta { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px 10px; }
+  .cpick-name { font-weight: 600; }
+  .cpick-sub { color: var(--ink-dim); font-size: 0.72rem; }
+  #continentStrip .cpick-card { flex: none; width: 150px; }
+  #continentStrip .cpick-prev { aspect-ratio: auto; height: 96px; padding: 4px; }
+  .cpick-all {
+    flex: none; align-self: center; min-height: 40px; padding: 8px 12px; border-radius: 8px;
+    background: transparent; color: var(--accent); border: 1px dashed var(--panel-border);
+    font: inherit; font-size: 0.78rem; cursor: pointer; white-space: nowrap;
+  }
+  .cpick-all:hover { border-color: var(--accent); }
+  #continentDashboard { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 24px 26px 32px; background: var(--bg); }
+  #continentDashboard[hidden] { display: none; }
+  body.cpick-open #mapView { display: none; }
+  #continentDashboard h2 {
+    margin: 0 0 4px; font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+    font-size: 1.45rem; font-weight: 500;
+  }
+  #continentDashboard .cpick-lead { margin: 0 0 18px; color: var(--ink-dim); font-size: 0.85rem; }
+  .cpick-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; max-width: 1100px; }
+  .cpick-grid .cpick-name { font-size: 1.05rem; }
+  .cpick-grid .cpick-sub { font-size: 0.8rem; }
+  @media (max-width: 600px) {
+    #continentStrip { position: fixed; top: 54px; left: 8px; right: 8px; transform: none; max-width: none; }
+    #continentStrip .cpick-card { width: 130px; }
+    #continentStrip .cpick-prev { height: 84px; }
+    #continentDashboard { padding: 18px 16px 28px; }
+    .cpick-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    #continentButton { min-height: 40px; }
+  }
+  @media (max-width: 340px) { .cpick-grid { grid-template-columns: 1fr; } }
 
   #mapView { flex: 1 1 auto; min-height: 0; display: flex; }
   /* ============================= КАРТА ============================= */
@@ -534,7 +588,7 @@
 @media (max-width:340px) {
   .scan-live { display:none !important; }
   .topbar { padding-left:8px; padding-right:8px; gap:6px; }
-  #continentSwitch { max-width:105px; }
+  #continentButton { max-width:130px; }
 }
 
 /* A single control remains available to restore the interface. */
@@ -553,7 +607,7 @@ body.map-ui-hidden #mapView .map-controls { left:auto; right:max(8px, env(safe-a
   #mapView .layers-card .layer-line { min-height:40px; align-items:center; }
   #mapView .layers-card select { min-height:40px; }
   .switch-btn { min-width:40px; min-height:40px; }
-  #continentSwitch { min-height:40px; }
+  #continentButton { min-height:40px; }
   #quickMeasure, #toggleMapInterface { min-width:40px; }
   #mapView .scan-details summary { min-height:40px; display:flex; align-items:center; }
   .topbar { height:auto; min-height:50px; }
@@ -569,7 +623,10 @@ body.map-ui-hidden #mapView .map-controls { left:auto; right:max(8px, env(safe-a
 
 <div class="topbar">
   <div class="topbar-brand">Lands of Lords</div>
-  <select id="continentSwitch" hidden></select>
+  <div class="continent-picker" id="continentPicker" hidden>
+    <button type="button" id="continentButton" aria-haspopup="true" aria-expanded="false" aria-controls="continentStrip"><span class="cpick-btn-name" id="continentButtonName"></span><span class="cpick-caret" aria-hidden="true">▾</span></button>
+    <div id="continentStrip" role="group" hidden></div>
+  </div>
   <div class="topbar-right">
     <div class="switch-group" id="langSwitch">
       <button class="switch-btn" data-lang="ru">RU</button>
@@ -577,6 +634,12 @@ body.map-ui-hidden #mapView .map-controls { left:auto; right:max(8px, env(safe-a
     </div>
   </div>
 </div>
+
+<section id="continentDashboard" aria-labelledby="continentDashboardTitle" hidden>
+  <h2 id="continentDashboardTitle" data-i18n="chooseContinent">Выберите континент</h2>
+  <p class="cpick-lead" id="continentDashboardLead"></p>
+  <div class="cpick-grid" id="continentDashboardGrid"></div>
+</section>
 
 <div id="loadingMap" role="progressbar" aria-label="Загрузка карты / Loading map" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="loading-scene" aria-hidden="true"><div class="loading-mason"></div></div><span class="loading-label">Загрузка карты / Downloading map data</span><div class="loading-track"><div class="loading-fill"></div></div><span class="loading-date"></span></div><div class="app" id="mapView">
   <aside class="sidebar">
@@ -776,6 +839,8 @@ const I18N = {
     best: (q) => `лучшее ${q}%`, topN: (n) => ` · топ-${n}`, layerStars: "Качество минералов (звёзды)", layerPlantQuality: "Качество растений", layerPlantHoverQuality: "Качество растений при наведении", treeQuality: (q) => `Качество растения: ${q}`, noData: "Нет данных", layerLandQuality: "Качество земли", qualityOff: "Выключено", qualityStars: "Звёзды", qualityNumbers: "Проценты", qualityBoth: "Звёзды и проценты", freeLabel: (n) => `свободно: ${n}`,
     badgeFree: "свободно", badgeOccupied: "занято", badgeOwn: "наш домен",
     tQuality: (q) => `${q}% качество`, cellsCount: (n) => `${n} клеток`,
+    chooseContinent: "Выберите континент", allContinents: "Все континенты", continentPickerLabel: (name) => `Континент: ${name}. Сменить`,
+    chooseContinentLead: (n) => `Доступно континентов: ${n}. Скачиваются данные только выбранного.`, dataAsOf: (d) => `данные от ${d}`,
   },
   en: {
     mapTitle: "Continent Explorer", pageTitleMap: "Continent Explorer — Lands of Lords", scanDetails: "Exploration details",
@@ -801,6 +866,8 @@ const I18N = {
     best: (q) => `best ${q}%`, topN: (n) => ` · top-${n}`, layerStars: "Quality of minerals (stars)", layerPlantQuality: "Plant quality", layerPlantHoverQuality: "Plant quality on hover", treeQuality: (q) => `Plant quality: ${q}`, noData: "No data", layerLandQuality: "Land quality", qualityOff: "Off", qualityStars: "Stars", qualityNumbers: "Percentages", qualityBoth: "Stars and percentages", freeLabel: (n) => `free: ${n}`,
     badgeFree: "free", badgeOccupied: "claimed", badgeOwn: "our domain",
     tQuality: (q) => `${q}% quality`, cellsCount: (n) => `${n} cells`,
+    chooseContinent: "Choose a continent", allContinents: "All continents", continentPickerLabel: (name) => `Continent: ${name}. Change`,
+    chooseContinentLead: (n) => `${n} continents available. Only the one you pick is downloaded.`, dataAsOf: (d) => `data as of ${d}`,
   },
 };
 let currentLang = localStorage.getItem("lolsite.lang") || "ru";
@@ -2618,7 +2685,7 @@ const fogLive = (() => {
     controls={root,summary:root.querySelector('.fog-live-summary'),description:root.querySelector('.fog-live-description'),time:root.querySelector('.fog-live-time')};
     root.querySelector('input').addEventListener('change',e=>{enabled=e.target.checked;render();});
     document.getElementById('langSwitch')?.addEventListener('click',()=>setTimeout(updateLabel,0));
-    document.getElementById('continentSwitch')?.addEventListener('change',()=>setTimeout(()=>{rasterMap=null;updateLabel();render();},0));
+    document.addEventListener('lol:continentchange',()=>setTimeout(()=>{rasterMap=null;updateLabel();render();},0));
     window.refreshFogLive=()=>{rasterMap=null;rebuild();render();};
     rebuild();updateLabel();load();setInterval(load,5*60*1000);
   }
@@ -2921,34 +2988,110 @@ window.addEventListener("resize", () => { resizeCanvas(); render(); });
 // Континенты грузятся по требованию: в памяти лежит только манифест, пока
 // континент не показан (см. ensureContinentLoaded). Переключатель поэтому
 // асинхронный: во время загрузки он заблокирован, а на карте виден прогресс.
-const continentSwitchEl = document.getElementById("continentSwitch");
+const continentPickerEl = document.getElementById("continentPicker");
+const continentButtonEl = document.getElementById("continentButton");
+const continentStripEl = document.getElementById("continentStrip");
+const continentDashboardEl = document.getElementById("continentDashboard");
 let currentContinentIdx = 0;
 let switchingContinent = false;
 let loadErrorTimer = 0;
+// Пока стартовый экран ждёт первого выбора (карта ещё не скачана), клик по
+// карточке отдаёт индекс сюда, а не в switchContinent().
+let continentBootResolve = null;
 
-function renderContinentSwitch() {
-  const continents = ALL_DATA.continents;
-  if (continents.length < 2) {
-    continentSwitchEl.hidden = true; // один континент — переключать нечего, не занимаем место в topbar
-    return;
-  }
-  continentSwitchEl.hidden = false;
-  continentSwitchEl.innerHTML = continents.map((c, i) => `<option value="${i}">${c.name}</option>`).join("");
-  continentSwitchEl.value = String(currentContinentIdx);
+function cpEsc(value) {
+  return String(value ?? "").replace(/[&<>"']/g, ch => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[ch]));
 }
-continentSwitchEl.addEventListener("change", () => {
-  switchContinent(parseInt(continentSwitchEl.value, 10));
+function continentDateText(entry) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(entry.generatedAt || "");
+  if (!m) return "";
+  if (currentLang === "ru") return `${m[3]}.${m[2]}.${m[1]}`;
+  return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])).toLocaleDateString("en-US", {month: "short", day: "numeric", year: "numeric", timeZone: "UTC"});
+}
+function continentCardHtml(entry, idx) {
+  const date = continentDateText(entry);
+  const parts = [];
+  if (Number.isFinite(entry.pointCount)) parts.push(t("cellsCount", fmtNum(entry.pointCount)));
+  if (date) parts.push(t("dataAsOf", date));
+  const sub = parts.join(" · ");
+  const current = !!MAP_DATA && idx === currentContinentIdx;
+  return `<button type="button" class="cpick-card" data-continent-idx="${idx}" aria-current="${current ? "true" : "false"}" aria-label="${cpEsc(entry.name + (sub ? " — " + sub : ""))}">`
+    + `<span class="cpick-prev">${entry.preview ? `<img src="${cpEsc(entry.preview)}" alt="" width="180" height="180" decoding="async">` : ""}</span>`
+    + `<span class="cpick-meta"><span class="cpick-name">${cpEsc(entry.name)}</span>${sub ? `<span class="cpick-sub">${cpEsc(sub)}</span>` : ""}</span></button>`;
+}
+function renderContinentPicker() {
+  const continents = ALL_DATA.continents;
+  const cards = continents.map(continentCardHtml).join("");
+  // Кнопка в шапке — только когда есть что переключать и карта уже показана.
+  continentPickerEl.hidden = continents.length < 2 || !MAP_DATA;
+  const name = continents[currentContinentIdx] ? continents[currentContinentIdx].name : "";
+  document.getElementById("continentButtonName").textContent = name;
+  continentButtonEl.setAttribute("aria-label", t("continentPickerLabel", name));
+  continentStripEl.setAttribute("aria-label", t("chooseContinent"));
+  continentStripEl.innerHTML = cards + `<button type="button" class="cpick-all" id="continentShowAll">${cpEsc(t("allContinents"))}</button>`;
+  document.getElementById("continentDashboardLead").textContent = t("chooseContinentLead", continents.length);
+  document.getElementById("continentDashboardGrid").innerHTML = cards;
+}
+// Прежнее имя — на случай внешних вызовов.
+const renderContinentSwitch = renderContinentPicker;
+
+function setContinentStripOpen(open) {
+  if (open && continentPickerEl.hidden) return;
+  continentStripEl.hidden = !open;
+  continentButtonEl.setAttribute("aria-expanded", String(open));
+  if (open) {
+    const cur = continentStripEl.querySelector('[aria-current="true"]') || continentStripEl.querySelector(".cpick-card");
+    if (cur) { cur.focus({preventScroll: true}); cur.scrollIntoView({block: "nearest", inline: "nearest"}); }
+  }
+}
+function showContinentDashboard() {
+  setContinentStripOpen(false);
+  renderContinentPicker();
+  continentDashboardEl.hidden = false;
+  document.body.classList.add("cpick-open");
+  const first = continentDashboardEl.querySelector('[aria-current="true"]') || continentDashboardEl.querySelector(".cpick-card");
+  if (first) first.focus({preventScroll: true});
+}
+function hideContinentDashboard() {
+  if (continentDashboardEl.hidden) return;
+  continentDashboardEl.hidden = true;
+  document.body.classList.remove("cpick-open");
+  if (MAP_DATA) { resizeCanvas(); render(); }
+}
+function rememberContinent(key) {
+  try { localStorage.setItem("lolsite.continent", key); } catch (e) {}
+}
+function pickContinent(idx) {
+  if (!ALL_DATA.continents[idx]) return;
+  rememberContinent(ALL_DATA.continents[idx].key);
+  setContinentStripOpen(false);
+  if (continentBootResolve) { continentBootResolve(idx); return; }
+  hideContinentDashboard();
+  switchContinent(idx);
+}
+continentButtonEl.addEventListener("click", () => setContinentStripOpen(continentStripEl.hidden));
+for (const host of [continentStripEl, continentDashboardEl]) {
+  host.addEventListener("click", event => {
+    if (event.target.closest("#continentShowAll")) { showContinentDashboard(); return; }
+    const card = event.target.closest(".cpick-card");
+    if (card) pickContinent(parseInt(card.dataset.continentIdx, 10));
+  });
+}
+document.addEventListener("click", event => {
+  if (!continentStripEl.hidden && !continentPickerEl.contains(event.target)) setContinentStripOpen(false);
+});
+document.addEventListener("keydown", event => {
+  if (event.key !== "Escape") return;
+  if (!continentStripEl.hidden) { setContinentStripOpen(false); continentButtonEl.focus(); }
+  else if (!continentDashboardEl.hidden && MAP_DATA && !continentBootResolve) hideContinentDashboard();
 });
 
 async function switchContinent(idx) {
-  if (switchingContinent || !ALL_DATA.continents[idx]) {
-    continentSwitchEl.value = String(currentContinentIdx);
-    return;
-  }
+  if (switchingContinent || !ALL_DATA.continents[idx]) return;
   const needsLoad = !ALL_DATA.continents[idx].map;
   if (!needsLoad && idx === currentContinentIdx) return;
   switchingContinent = true;
-  continentSwitchEl.disabled = true;
+  continentButtonEl.disabled = true;
   if (needsLoad) {
     showLoadingOverlay("Загрузка континента / Loading continent");
   }
@@ -2961,13 +3104,12 @@ async function switchContinent(idx) {
     setLoadingMessage("Не удалось загрузить континент. Попробуйте ещё раз. / Could not load this continent. Please try again.");
     clearTimeout(loadErrorTimer);
     loadErrorTimer = setTimeout(hideLoadingOverlay, 6000);
-    continentSwitchEl.value = String(currentContinentIdx);
     switchingContinent = false;
-    continentSwitchEl.disabled = false;
+    continentButtonEl.disabled = false;
     return;
   }
   currentContinentIdx = idx; freeLandCache = -1;
-  localStorage.setItem("lolsite.continent", ALL_DATA.continents[idx].key);
+  rememberContinent(ALL_DATA.continents[idx].key);
   const c = ALL_DATA.continents[idx];
   document.getElementById("continentNameLabel").textContent = c.name;
   SCAN_TIMING = c.scanTiming || null;
@@ -2992,9 +3134,12 @@ async function switchContinent(idx) {
   updateFreshness();
 
   document.title = t("pageTitleMap");
+  renderContinentPicker();
+  if (mapTools.syncLink) mapTools.syncLink(); // #continent=<key> в адресе сразу, а не после движения карты
   hideLoadingOverlay();
   switchingContinent = false;
-  continentSwitchEl.disabled = false;
+  continentButtonEl.disabled = false;
+  document.dispatchEvent(new CustomEvent("lol:continentchange", {detail: {key: c.key}}));
 }
 
 // ======================================================================
@@ -3010,6 +3155,9 @@ function applyLang(lang) {
   document.querySelectorAll("[data-i18n-placeholder]").forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
   document.querySelectorAll("[data-i18n-title]").forEach(el => { el.title = t(el.dataset.i18nTitle); });
 
+  renderContinentPicker();
+  // Стартовый экран выбора континента: карты ещё нет, остальное строить не из чего.
+  if (!MAP_DATA) return;
   // Динамический контент (построен из DATA, не статичная разметка) —
   // перестраивается явно.
   updateSourceLabel();
@@ -4104,15 +4252,31 @@ const mapTools = (() => {
   document.addEventListener('pointerdown',markInteracted,{capture:true,passive:true,once:true});
   document.addEventListener('keydown',markInteracted,{capture:true,once:true});
   function jumpTo(x,y) { scale=Math.max(scale,6/PT); jumpCenter(x,y); syncLink(); closeSidebar(); }
-  return Object.assign(state,{onData,localize,renderOwners,drawUnknown,drawSettlements,drawResourceResults,drawExtras,zoomAt,clickAt,restoreLink,terrainColor,jumpTo});
+  return Object.assign(state,{onData,localize,renderOwners,drawUnknown,drawSettlements,drawResourceResults,drawExtras,zoomAt,clickAt,restoreLink,terrainColor,jumpTo,syncLink});
 })();
 
 // --- boot ---
-// Стартуем всегда с континента по умолчанию (Орентия): запомненный в
-// localStorage прошлый выбор не решает, что качать. Явная ссылка
-// #continent=<key> — осознанный выбор в «поделиться», её уважаем.
+// Какой континент качать: явная ссылка #continent=<key> → прошлый выбор
+// посетителя (localStorage) → стартовый экран с карточками, где ничего,
+// кроме манифеста и превью, ещё не скачано. Один континент — грузим сразу.
+const knownContinent = key => !!key && ALL_DATA.continents.some(c => c.key === key);
 const hashContinentKey = new URLSearchParams(location.hash.slice(1)).get("continent");
-const wantedContinentKey = hashContinentKey || ALL_DATA.default;
+let savedContinentKey = null;
+try { savedContinentKey = localStorage.getItem("lolsite.continent"); } catch (e) {}
+let wantedContinentKey = knownContinent(hashContinentKey) ? hashContinentKey
+  : knownContinent(savedContinentKey) ? savedContinentKey
+  : ALL_DATA.continents.length < 2 ? ALL_DATA.default : null;
+if (!wantedContinentKey) {
+  document.getElementById("loadingMap").hidden = true;
+  applyLang(currentLang);
+  const pickedIdx = await new Promise(resolve => { continentBootResolve = resolve; showContinentDashboard(); });
+  continentBootResolve = null;
+  continentDashboardEl.hidden = true;
+  document.body.classList.remove("cpick-open");
+  wantedContinentKey = ALL_DATA.continents[pickedIdx].key;
+  showLoadingOverlay("Загрузка континента / Loading continent");
+}
+rememberContinent(wantedContinentKey);
 currentContinentIdx = Math.max(0, ALL_DATA.continents.findIndex(c => c.key === wantedContinentKey));
 await ensureContinentLoaded(currentContinentIdx);
 const bootContinent = ALL_DATA.continents[currentContinentIdx];
@@ -4128,7 +4292,7 @@ SCAN_TIMING = bootContinent.scanTiming || null;
 LANDMARKS = bootContinent.landmarks || [];
 loadMapData(bootContinent.map);
 mapTools.onData();
-renderContinentSwitch();
+renderContinentPicker();
 
 resizeCanvas();
 fitToView();
