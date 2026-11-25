@@ -2028,7 +2028,7 @@ function isRoadType(t) { return ROAD_TYPES.has(t) || t.endsWith("strt") || t.end
 // скану клетка свободна (p[4] === 0, владельца нет).
 let abandonedCache = {};
 // Число брошенных, посчитанное при сборке (build_site.py) — подпись слоя видна до загрузки buildings.
-const ABANDONED_COUNTS = {};
+const ABANDONED_COUNTS = {"orentia": 559, "corentis": 0, "palmaris": 8043};
 function abandonedCells() {
   const key = ALL_DATA.continents[currentContinentIdx].key;
   if (abandonedCache[key]) return abandonedCache[key];
